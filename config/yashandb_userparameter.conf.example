@@ -1,0 +1,70 @@
+# YashanDB 监控插件配置示例
+# 文件位置: /etc/zabbix/zabbix_agentd.d/yashandb.conf
+# 或 Windows: C:\Program Files\Zabbix Agent 2\zabbix_agentd.d\yashandb.conf
+#
+# 注意：请勿将此文件提交到 Git（已在 .gitignore 中排除加密版本）
+# 敏感配置请使用 yashandb_<instance>.conf 命名，.gitignore 已忽略该格式
+
+# ================================================================
+# 方式一：UserParameter（推荐，通过 Zabbix Agent 本地执行）
+# ================================================================
+#
+# 语法: UserParameter=<key>,<command>
+# 其中 <key> 需与 Zabbix 模板中的监控项键值一致
+#
+# 替换以下路径为实际安装路径：
+#   SCRIPT_DIR  = YashanDB 监控脚本目录
+#   PYTHON_BIN  = Python 3.x 可执行文件路径
+#   YASHANDB_HOST / PORT / USER / PASS = 连接信息
+#
+# ----------------------------------------------------------------
+
+### Linux 示例 ###
+# SCRIPT_DIR=/etc/zabbix/scripts/yas_zabbix
+# PYTHON_BIN=/usr/bin/python3
+
+# 实例状态
+#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.status
+
+# 数据库版本
+#UserParameter=yashandb.db.version,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.version
+
+# 运行时长
+#UserParameter=yashandb.db.uptime,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.uptime
+
+# 会话统计
+#UserParameter=yashandb.sessions.active,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sessions.active
+#UserParameter=yashandb.sessions.total,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sessions.total
+
+# Buffer Pool
+#UserParameter=yashandb.memory.buffer_pool_hit,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.memory.buffer_pool_hit
+
+# 慢 SQL 数量
+#UserParameter=yashandb.sql.slow_count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sql.slow_count
+
+# 表空间自动发现（LLD）
+#UserParameter=yashandb.tablespace.discovery,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.tablespace.discovery
+
+# 带参数的表空间指标（使用 $1 接受 Zabbix 传入的参数）
+#UserParameter=yashandb.tablespace.pct_used[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "db.tablespace.pct_used[$1]"
+#UserParameter=yashandb.tablespace.free[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "db.tablespace.free[$1]"
+
+# ----------------------------------------------------------------
+### Windows 示例（Zabbix Agent 2）###
+
+# 实例状态
+#UserParameter=yashandb.db.status,C:\Python3\python.exe C:\zabbix\scripts\yas_zabbix\yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password YourPassword --metric db.status
+
+# ================================================================
+# 方式二：使用配置文件（推荐生产环境，避免密码明文在配置中暴露）
+# ================================================================
+# 创建 /etc/zabbix/scripts/yas_zabbix/config/yashandb.conf（已在 .gitignore 排除）
+# 内容格式：
+#   [yashandb]
+#   host = 127.0.0.1
+#   port = 1688
+#   user = sys
+#   password = YourPassword
+#
+# 然后使用 --config 参数：
+#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --config /etc/zabbix/scripts/yas_zabbix/config/yashandb.conf --host x --user x --password x --metric db.status

@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  YashanDB Zabbix 监控模板
+  版本:     1.0.0
+  适配:     Zabbix 7.4.x + YashanDB 23.4 LTS
+  导入方式: Zabbix Web UI → 配置 → 模板 → 导入
+-->
+<zabbix_export>
+    <version>7.4</version>
+    <template_groups>
+        <template_group>
+            <uuid>a571c0d144b14fd4a87a9d9b2aa9fcd6</uuid>
+            <name>Templates/Databases</name>
+        </template_group>
+    </template_groups>
+    <templates>
+        <template>
+            <uuid>4a3e9f8b2c1d4e5f6a7b8c9d0e1f2a3b</uuid>
+            <template>YashanDB by Zabbix Agent</template>
+            <name>YashanDB by Zabbix Agent</name>
+            <description>YashanDB 23.4 LTS 数据库监控模板&#13;&#10;&#13;&#10;支持指标：实例状态、会话、内存(Buffer Pool/VM Pool)、表空间(LLD)、Redo日志、SQL性能、等待事件、锁。&#13;&#10;&#13;&#10;前置条件：&#13;&#10;1. Zabbix Agent 2 已安装在 YashanDB 主机上&#13;&#10;2. YashanDB Python 驱动 (yaspy) 已安装&#13;&#10;3. yashandb_monitor.py 已部署到 {$YASHANDB.SCRIPT_DIR}&#13;&#10;4. zabbix_agentd.d/yashandb.conf 已配置 UserParameter</description>
+            <groups>
+                <group>
+                    <name>Templates/Databases</name>
+                </group>
+            </groups>
+            <macros>
+                <macro>
+                    <macro>{$YASHANDB.HOST}</macro>
+                    <value>127.0.0.1</value>
+                    <description>YashanDB 主机地址</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PORT}</macro>
+                    <value>1688</value>
+                    <description>YashanDB 端口</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.USER}</macro>
+                    <value>sys</value>
+                    <description>监控账号用户名</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PASSWORD}</macro>
+                    <value></value>
+                    <type>SECRET_TEXT</type>
+                    <description>监控账号密码（敏感，请勿明文提交）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SCRIPT_DIR}</macro>
+                    <value>/etc/zabbix/scripts/yas_zabbix</value>
+                    <description>监控脚本所在目录</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PYTHON}</macro>
+                    <value>/usr/bin/python3</value>
+                    <description>Python 3 可执行文件路径</description>
+                </macro>
+                <!-- 告警阈值宏 -->
+                <macro>
+                    <macro>{$YASHANDB.SESSIONS.MAX.WARN}</macro>
+                    <value>80</value>
+                    <description>会话使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.BUFFER.HIT.MIN}</macro>
+                    <value>90</value>
+                    <description>Buffer Pool 命中率最低阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.TABLESPACE.WARN}</macro>
+                    <value>80</value>
+                    <description>表空间使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.TABLESPACE.CRIT}</macro>
+                    <value>90</value>
+                    <description>表空间使用率严重告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SLOW_SQL.WARN}</macro>
+                    <value>10</value>
+                    <description>慢 SQL 数量告警阈值</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.LOCK.WARN}</macro>
+                    <value>20</value>
+                    <description>锁数量告警阈值</description>
+                </macro>
+            </macros>
+            <items>
+                <!-- ==================== 实例状态 ==================== -->
+                <item>
+                    <uuid>1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d</uuid>
+                    <name>YashanDB: 实例状态</name>
+                    <key>yashandb.db.status</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>数据库实例运行状态：1=正常，0=异常</description>
+                    <valuemap>
+                        <name>YashanDB DB Status</name>
+                    </valuemap>
+                    <triggers>
+                        <trigger>
+                            <uuid>aa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.status)=0</expression>
+                            <name>YashanDB: 实例不可用 ({HOST.NAME})</name>
+                            <priority>DISASTER</priority>
+                            <description>YashanDB 数据库实例无法连接或不可用</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    </triggers>
+                </item>
+                <item>
+                    <uuid>2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e</uuid>
+                    <name>YashanDB: 版本</name>
+                    <key>yashandb.db.version</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>数据库版本号</description>
+                </item>
+                <item>
+                    <uuid>3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f</uuid>
+                    <name>YashanDB: 启动时长</name>
+                    <key>yashandb.db.uptime</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>s</units>
+                    <description>数据库启动时长（秒）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.uptime) &lt; 300 and last(/YashanDB by Zabbix Agent/yashandb.db.status) = 1</expression>
+                            <name>YashanDB: 数据库最近重启 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>数据库在 5 分钟内发生了重启</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    </triggers>
+                </item>
+                <item>
+                    <uuid>4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a</uuid>
+                    <name>YashanDB: 运行模式</name>
+                    <key>yashandb.db.mode</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>数据库运行模式（PRIMARY/STANDBY）</description>
+                </item>
+
+                <!-- ==================== 会话 ==================== -->
+                <item>
+                    <uuid>5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b</uuid>
+                    <name>YashanDB: 活跃会话数</name>
+                    <key>yashandb.sessions.active</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前 ACTIVE 状态的会话数量</description>
+                </item>
+                <item>
+                    <uuid>6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c</uuid>
+                    <name>YashanDB: 总会话数</name>
+                    <key>yashandb.sessions.total</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前总会话数量</description>
+                </item>
+                <item>
+                    <uuid>7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d</uuid>
+                    <name>YashanDB: 等待中会话数</name>
+                    <key>yashandb.sessions.waiting</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前处于非 Idle 等待状态的会话数量</description>
+                </item>
+                <item>
+                    <uuid>8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e</uuid>
+                    <name>YashanDB: 最大会话限制</name>
+                    <key>yashandb.sessions.max</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>数据库 sessions 参数配置的最大会话数</description>
+                </item>
+
+                <!-- ==================== 内存 ==================== -->
+                <item>
+                    <uuid>9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f</uuid>
+                    <name>YashanDB: Buffer Pool 总大小</name>
+                    <key>yashandb.memory.buffer_pool_size</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Buffer Pool 总容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a</uuid>
+                    <name>YashanDB: Buffer Pool 已使用</name>
+                    <key>yashandb.memory.buffer_pool_used</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Buffer Pool 已使用容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b</uuid>
+                    <name>YashanDB: Buffer Pool 命中率</name>
+                    <key>yashandb.memory.buffer_pool_hit</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>Buffer Pool 缓存命中率（%），越高越好</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>cc3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.memory.buffer_pool_hit) &lt; {$YASHANDB.BUFFER.HIT.MIN}</expression>
+                            <name>YashanDB: Buffer Pool 命中率过低 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>Buffer Pool 命中率低于 {$YASHANDB.BUFFER.HIT.MIN}%，可能需要增加 Buffer Pool 大小</description>
+                        </trigger>
+                    </triggers>
+                </item>
+                <item>
+                    <uuid>2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c</uuid>
+                    <name>YashanDB: VM Pool 总大小</name>
+                    <key>yashandb.memory.vm_pool_size</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>VM Pool 总容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d</uuid>
+                    <name>YashanDB: VM Pool 已使用</name>
+                    <key>yashandb.memory.vm_pool_used</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>VM Pool 已使用容量（字节）</description>
+                </item>
+
+                <!-- ==================== Redo 日志 ==================== -->
+                <item>
+                    <uuid>4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e</uuid>
+                    <name>YashanDB: Redo 刷盘速度</name>
+                    <key>yashandb.redo.flush_speed</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>Bps</units>
+                    <description>Redo 日志刷盘速度（字节/秒）</description>
+                </item>
+                <item>
+                    <uuid>5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f</uuid>
+                    <name>YashanDB: Redo 空闲空间</name>
+                    <key>yashandb.redo.free_space</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Redo 日志空闲空间（字节）</description>
+                </item>
+                <item>
+                    <uuid>6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a</uuid>
+                    <name>YashanDB: 检查点落后量</name>
+                    <key>yashandb.redo.checkpoint_lag</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>检查点落后当前 LSN 的量，越大说明恢复时间越长</description>
+                </item>
+
+                <!-- ==================== SQL 性能 ==================== -->
+                <item>
+                    <uuid>7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b</uuid>
+                    <name>YashanDB: 每秒 SQL 执行次数</name>
+                    <key>yashandb.sql.executions_per_sec</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>executions/s</units>
+                    <description>每秒 SQL 语句执行次数（累计值，从 V$SYSSTAT 获取）</description>
+                </item>
+                <item>
+                    <uuid>8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c</uuid>
+                    <name>YashanDB: SQL 平均执行时长</name>
+                    <key>yashandb.sql.avg_elapsed_ms</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>V$SQL 中所有 SQL 的平均执行时长（毫秒）</description>
+                </item>
+                <item>
+                    <uuid>9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d</uuid>
+                    <name>YashanDB: 慢 SQL 数量</name>
+                    <key>yashandb.sql.slow_count</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>执行时间超过 1 秒的 SQL 数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>dd4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.sql.slow_count) > {$YASHANDB.SLOW_SQL.WARN}</expression>
+                            <name>YashanDB: 慢 SQL 数量过多 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>慢 SQL 数量超过 {$YASHANDB.SLOW_SQL.WARN} 条，建议排查 SQL 执行计划</description>
+                        </trigger>
+                    </triggers>
+                </item>
+                <item>
+                    <uuid>0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e</uuid>
+                    <name>YashanDB: SQL 解析次数</name>
+                    <key>yashandb.sql.parse_count</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>SQL 解析总次数（硬解析 + 软解析）</description>
+                </item>
+
+                <!-- ==================== 等待事件 ==================== -->
+                <item>
+                    <uuid>1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f</uuid>
+                    <name>YashanDB: TOP 等待事件</name>
+                    <key>yashandb.wait.top_event</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>当前等待次数最多的等待事件名称</description>
+                </item>
+                <item>
+                    <uuid>2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a</uuid>
+                    <name>YashanDB: 总等待次数</name>
+                    <key>yashandb.wait.total_waits</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>所有非 Idle 等待事件的总等待次数</description>
+                </item>
+                <item>
+                    <uuid>3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b</uuid>
+                    <name>YashanDB: 总等待时间</name>
+                    <key>yashandb.wait.time_waited_ms</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>所有非 Idle 等待事件的累计等待时间（毫秒）</description>
+                </item>
+
+                <!-- ==================== 锁 ==================== -->
+                <item>
+                    <uuid>4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c</uuid>
+                    <name>YashanDB: 锁数量</name>
+                    <key>yashandb.lock.count</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前数据库中的锁总数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>ee5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.lock.count) > {$YASHANDB.LOCK.WARN}</expression>
+                            <name>YashanDB: 锁数量过多 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>当前锁数量超过 {$YASHANDB.LOCK.WARN}，可能存在锁争用</description>
+                        </trigger>
+                    </triggers>
+                </item>
+                <item>
+                    <uuid>5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d</uuid>
+                    <name>YashanDB: 阻塞中的会话数</name>
+                    <key>yashandb.lock.blocking_sessions</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前存在阻塞行为的会话数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>ff6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.lock.blocking_sessions) > 0</expression>
+                            <name>YashanDB: 存在阻塞会话 ({HOST.NAME})</name>
+                            <priority>AVERAGE</priority>
+                            <description>存在会话被其他会话阻塞，请及时排查锁等待情况</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    </triggers>
+                </item>
+            </items>
+
+            <!-- ==================== 表空间 LLD 自动发现 ==================== -->
+            <discovery_rules>
+                <discovery_rule>
+                    <uuid>6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e</uuid>
+                    <name>YashanDB: 表空间自动发现</name>
+                    <key>yashandb.tablespace.discovery</key>
+                    <delay>3600s</delay>
+                    <description>自动发现所有表空间，为每个表空间创建监控项</description>
+                    <item_prototypes>
+                        <item_prototype>
+                            <uuid>7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f</uuid>
+                            <name>YashanDB: 表空间 {#TS} 总大小</name>
+                            <key>yashandb.tablespace.total[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 的数据文件总大小（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a</uuid>
+                            <name>YashanDB: 表空间 {#TS} 已使用</name>
+                            <key>yashandb.tablespace.used[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 已使用大小（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b</uuid>
+                            <name>YashanDB: 表空间 {#TS} 剩余空间</name>
+                            <key>yashandb.tablespace.free[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 剩余可用空间（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c</uuid>
+                            <name>YashanDB: 表空间 {#TS} 使用率</name>
+                            <key>yashandb.tablespace.pct_used[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>FLOAT</value_type>
+                            <units>%</units>
+                            <description>表空间 {#TS} 使用率百分比</description>
+                        </item_prototype>
+                    </item_prototypes>
+                    <trigger_prototypes>
+                        <trigger_prototype>
+                            <uuid>a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) > {$YASHANDB.TABLESPACE.CRIT}</expression>
+                            <name>YashanDB: 表空间 {#TS} 使用率严重 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>表空间 {#TS} 使用率超过 {$YASHANDB.TABLESPACE.CRIT}%，需要立即扩容</description>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <uuid>b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) > {$YASHANDB.TABLESPACE.WARN} and last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) &lt;= {$YASHANDB.TABLESPACE.CRIT}</expression>
+                            <name>YashanDB: 表空间 {#TS} 使用率告警 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>表空间 {#TS} 使用率超过 {$YASHANDB.TABLESPACE.WARN}%，请注意磁盘空间</description>
+                        </trigger_prototype>
+                    </trigger_prototypes>
+                </discovery_rule>
+            </discovery_rules>
+
+            <!-- ==================== 值映射 ==================== -->
+            <valuemaps>
+                <valuemap>
+                    <uuid>c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8</uuid>
+                    <name>YashanDB DB Status</name>
+                    <mappings>
+                        <mapping>
+                            <value>0</value>
+                            <newvalue>异常/不可用</newvalue>
+                        </mapping>
+                        <mapping>
+                            <value>1</value>
+                            <newvalue>正常运行</newvalue>
+                        </mapping>
+                    </mappings>
+                </valuemap>
+            </valuemaps>
+        </template>
+    </templates>
+</zabbix_export>

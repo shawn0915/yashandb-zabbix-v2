@@ -1,0 +1,728 @@
+[
+  {
+    "itemid": "50782",
+    "key": "yashandb.active_background",
+    "name": "YashanDB: 活跃后台会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50861",
+    "key": "yashandb.archived_log.count",
+    "name": "YashanDB: 近24h归档日志数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50862",
+    "key": "yashandb.archived_log.first_time",
+    "name": "YashanDB: 最新归档日志时间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50865",
+    "key": "yashandb.archiver.failed",
+    "name": "YashanDB: 归档进程失败次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50814",
+    "key": "yashandb.avg_synchronous_single_block_read_latency",
+    "name": "YashanDB: 平均同步单块读延迟",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50816",
+    "key": "yashandb.branch_node_splits",
+    "name": "YashanDB: 分支节点分裂次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50789",
+    "key": "yashandb.buffer_cachehit_ratio",
+    "name": "YashanDB: 缓冲区缓存命中率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50790",
+    "key": "yashandb.cache_blocks_lost",
+    "name": "YashanDB: 丢失的缓存块数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50800",
+    "key": "yashandb.consistent_read_changes",
+    "name": "YashanDB: 一致性读变更次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50854",
+    "key": "yashandb.db.current_logons",
+    "name": "YashanDB: 当前登录数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50871",
+    "key": "yashandb.db.datafile_max_usage_pct",
+    "name": "YashanDB: 数据文件最大容量使用率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50872",
+    "key": "yashandb.db.dbms_stats_available",
+    "name": "YashanDB: DBMS_STATS 包可用性",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50826",
+    "key": "yashandb.db.ha.sync_delay",
+    "name": "YashanDB: 主备同步延迟",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50867",
+    "key": "yashandb.db.invalid_indexes",
+    "name": "YashanDB: 无效索引数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50866",
+    "key": "yashandb.db.invalid_objects",
+    "name": "YashanDB: 无效数据库对象数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50781",
+    "key": "yashandb.db.lock.blocking_sessions",
+    "name": "YashanDB: 阻塞中的会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50780",
+    "key": "yashandb.db.lock.count",
+    "name": "YashanDB: 锁数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50825",
+    "key": "yashandb.db.long_transactions",
+    "name": "YashanDB: 超过3分钟的长事务数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50767",
+    "key": "yashandb.db.memory.buffer_pool_hit",
+    "name": "YashanDB: Buffer Pool 命中率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50765",
+    "key": "yashandb.db.memory.buffer_pool_size",
+    "name": "YashanDB: Buffer Pool 总大小",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50766",
+    "key": "yashandb.db.memory.buffer_pool_used",
+    "name": "YashanDB: Buffer Pool 已使用",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50768",
+    "key": "yashandb.db.memory.vm_pool_size",
+    "name": "YashanDB: VM Pool 总大小",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50769",
+    "key": "yashandb.db.memory.vm_pool_used",
+    "name": "YashanDB: VM Pool 已使用",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50760",
+    "key": "yashandb.db.mode",
+    "name": "YashanDB: 运行模式",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50855",
+    "key": "yashandb.db.open_cursors",
+    "name": "YashanDB: 打开游标数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50857",
+    "key": "yashandb.db.process_limit_pct",
+    "name": "YashanDB: 进程限制使用率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50772",
+    "key": "yashandb.db.redo.checkpoint_lag",
+    "name": "YashanDB: 检查点落后量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50770",
+    "key": "yashandb.db.redo.flush_speed",
+    "name": "YashanDB: Redo 刷盘速度",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50771",
+    "key": "yashandb.db.redo.free_space",
+    "name": "YashanDB: Redo 空闲空间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50827",
+    "key": "yashandb.db.redo.log_switches",
+    "name": "YashanDB: 近24小时 Redo 日志切换次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50858",
+    "key": "yashandb.db.session_limit_pct",
+    "name": "YashanDB: 会话限制使用率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50761",
+    "key": "yashandb.db.sessions.active",
+    "name": "YashanDB: 活跃会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50764",
+    "key": "yashandb.db.sessions.max",
+    "name": "YashanDB: 最大会话限制",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50762",
+    "key": "yashandb.db.sessions.total",
+    "name": "YashanDB: 总会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50763",
+    "key": "yashandb.db.sessions.waiting",
+    "name": "YashanDB: 等待中会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50869",
+    "key": "yashandb.db.soft_parse_ratio",
+    "name": "YashanDB: 软解析比率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50774",
+    "key": "yashandb.db.sql.avg_elapsed_ms",
+    "name": "YashanDB: SQL 平均执行时长",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50773",
+    "key": "yashandb.db.sql.executions_per_sec",
+    "name": "YashanDB: 每秒 SQL 执行次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50776",
+    "key": "yashandb.db.sql.parse_count",
+    "name": "YashanDB: SQL 解析次数（硬解析）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50775",
+    "key": "yashandb.db.sql.slow_count",
+    "name": "YashanDB: 慢 SQL 数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50868",
+    "key": "yashandb.db.stale_statistics",
+    "name": "YashanDB: 统计信息陈旧的表数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50757",
+    "key": "yashandb.db.status",
+    "name": "YashanDB: 实例状态",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50870",
+    "key": "yashandb.db.tablespace_remaining_days",
+    "name": "YashanDB: 表空间剩余天数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50759",
+    "key": "yashandb.db.uptime",
+    "name": "YashanDB: 启动时长",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50856",
+    "key": "yashandb.db.user_limit_pct",
+    "name": "YashanDB: 用户会话限制使用率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50758",
+    "key": "yashandb.db.version",
+    "name": "YashanDB: 版本",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50779",
+    "key": "yashandb.db.wait.time_waited_ms",
+    "name": "YashanDB: 总等待时间",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50777",
+    "key": "yashandb.db.wait.top_event",
+    "name": "YashanDB: TOP 等待事件",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50778",
+    "key": "yashandb.db.wait.total_waits",
+    "name": "YashanDB: 总等待次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50831",
+    "key": "yashandb.db.wait_event_time[{#WAIT_EVENT}]",
+    "name": "YashanDB: 指定等待事件等待时间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50830",
+    "key": "yashandb.db.wait_event_waits[{#WAIT_EVENT}]",
+    "name": "YashanDB: 指定等待事件次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50829",
+    "key": "yashandb.db.wait_time_total",
+    "name": "YashanDB: 总会话等待时间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50875",
+    "key": "yashandb.db.wait_top_event",
+    "name": "YashanDB: Top Wait Event",
+    "value_type": "1"
+  },
+  {
+    "itemid": "50828",
+    "key": "yashandb.db.waits_total",
+    "name": "YashanDB: 总会话等待次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50801",
+    "key": "yashandb.db_block_changes",
+    "name": "YashanDB: 数据库块变更数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50808",
+    "key": "yashandb.dbwr_checkpoints",
+    "name": "YashanDB: DBWR 检查点完成数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50840",
+    "key": "yashandb.disk.total_read_time",
+    "name": "YashanDB: 物理读取总时间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50838",
+    "key": "yashandb.disk.total_reads",
+    "name": "YashanDB: 物理读取总次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50841",
+    "key": "yashandb.disk.total_write_time",
+    "name": "YashanDB: 物理写入总时间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50839",
+    "key": "yashandb.disk.total_writes",
+    "name": "YashanDB: 物理写入总次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50803",
+    "key": "yashandb.disk_sorts",
+    "name": "YashanDB: 磁盘排序次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50823",
+    "key": "yashandb.gc_average_cr_get_time",
+    "name": "YashanDB: 全局缓存平均 CR 获取时间",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50824",
+    "key": "yashandb.gc_average_current_get_time",
+    "name": "YashanDB: 全局缓存平均 current 块获取时间",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50787",
+    "key": "yashandb.hard_parses",
+    "name": "YashanDB: 硬解析次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50811",
+    "key": "yashandb.host_cpu_utilization",
+    "name": "YashanDB: 主机 CPU 利用率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50817",
+    "key": "yashandb.leaf_node_splits",
+    "name": "YashanDB: 叶节点分裂次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50847",
+    "key": "yashandb.library_cache_hit_ratio",
+    "name": "YashanDB: Library Cache Hit Ratio（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50848",
+    "key": "yashandb.library_cache_reload_ratio",
+    "name": "YashanDB: Library Cache Reload Ratio（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50863",
+    "key": "yashandb.lock.enqueue_locks",
+    "name": "YashanDB: Enqueue 锁数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50864",
+    "key": "yashandb.lock.enqueue_requests",
+    "name": "YashanDB: Enqueue 锁请求次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50802",
+    "key": "yashandb.logical_reads",
+    "name": "YashanDB: 逻辑读取次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50788",
+    "key": "yashandb.memory_sorts_ratio",
+    "name": "YashanDB: 内存排序比率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50815",
+    "key": "yashandb.network_traffic_volume",
+    "name": "YashanDB: 网络流量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50812",
+    "key": "yashandb.num_cpus",
+    "name": "YashanDB: CPU 核心数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50813",
+    "key": "yashandb.os_load",
+    "name": "YashanDB: 操作系统负载",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50791",
+    "key": "yashandb.physical_memory_gb",
+    "name": "YashanDB: 物理内存大小",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50798",
+    "key": "yashandb.physical_reads",
+    "name": "YashanDB: 物理读取次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50799",
+    "key": "yashandb.physical_writes",
+    "name": "YashanDB: 物理写入次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50794",
+    "key": "yashandb.process.pga_allocated_memory",
+    "name": "YashanDB: 进程 PGA 分配内存",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50795",
+    "key": "yashandb.process.pga_freeable_memory",
+    "name": "YashanDB: 进程 PGA 可释放内存",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50796",
+    "key": "yashandb.process.pga_max_memory",
+    "name": "YashanDB: 进程当前最大 PGA 内存",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50797",
+    "key": "yashandb.process.pga_used_memory",
+    "name": "YashanDB: 进程 PGA 已用内存",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50783",
+    "key": "yashandb.process_limit",
+    "name": "YashanDB: 进程限制使用率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50846",
+    "key": "yashandb.redo.switch_checkpoint",
+    "name": "YashanDB: Redo 切换触发检查点",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50845",
+    "key": "yashandb.redo.waits",
+    "name": "YashanDB: Redo 日志等待次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50805",
+    "key": "yashandb.redo_allocation_hit_ratio",
+    "name": "YashanDB: Redo 空间分配命中率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50806",
+    "key": "yashandb.redo_generated",
+    "name": "YashanDB: Redo 生成速率",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50807",
+    "key": "yashandb.redo_writes",
+    "name": "YashanDB: Redo 写入次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50850",
+    "key": "yashandb.rollback.gets",
+    "name": "YashanDB: Rollback Segment Gets（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50852",
+    "key": "yashandb.rollback.ratio_wait",
+    "name": "YashanDB: Rollback Ratio Wait（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50851",
+    "key": "yashandb.rollback.waits",
+    "name": "YashanDB: Rollback Segment Waits（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50849",
+    "key": "yashandb.row_cache_hit_ratio",
+    "name": "YashanDB: Row Cache Hit Ratio（N/A）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50874",
+    "key": "yashandb.segment.top_tablespace",
+    "name": "YashanDB: 占用空间最大的表空间",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50873",
+    "key": "yashandb.segment.total_count",
+    "name": "YashanDB: 段总数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50784",
+    "key": "yashandb.session_count",
+    "name": "YashanDB: 会话总数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50785",
+    "key": "yashandb.session_limit_usage",
+    "name": "YashanDB: 会话限制使用率",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50844",
+    "key": "yashandb.sessions.active_detail",
+    "name": "YashanDB: 活跃会话数（详细）",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50843",
+    "key": "yashandb.sessions.background",
+    "name": "YashanDB: 后台会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50842",
+    "key": "yashandb.sessions.inactive",
+    "name": "YashanDB: 非活跃会话数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50832",
+    "key": "yashandb.sga.buffer_busy_waits",
+    "name": "YashanDB: Buffer Busy Waits",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50835",
+    "key": "yashandb.sga.fixed_size",
+    "name": "YashanDB: SGA Fixed Size",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50834",
+    "key": "yashandb.sga.free_buffer_inspected",
+    "name": "YashanDB: Free Buffer Inspected",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50833",
+    "key": "yashandb.sga.free_buffer_waits",
+    "name": "YashanDB: Free Buffer Waits",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50837",
+    "key": "yashandb.sga.log_buffer_space_waits",
+    "name": "YashanDB: Log Buffer Space Waits",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50836",
+    "key": "yashandb.sga.redo_buffers",
+    "name": "YashanDB: Redo Buffers",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50792",
+    "key": "yashandb.shared_memory_size",
+    "name": "YashanDB: 共享内存大小",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50793",
+    "key": "yashandb.shared_pool_free",
+    "name": "YashanDB: 共享池空闲内存百分比",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50804",
+    "key": "yashandb.sorts_per_user_call",
+    "name": "YashanDB: 每次用户调用的排序次数",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50853",
+    "key": "yashandb.sql.count",
+    "name": "YashanDB: 共享池 SQL 语句总数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50876",
+    "key": "yashandb.sql.top_buffer_gets",
+    "name": "YashanDB: Top SQL by Buffer Gets",
+    "value_type": "1"
+  },
+  {
+    "itemid": "50877",
+    "key": "yashandb.sql.top_disk_reads",
+    "name": "YashanDB: Top SQL by Disk Reads",
+    "value_type": "1"
+  },
+  {
+    "itemid": "50860",
+    "key": "yashandb.tablespace.datafile_offline_count",
+    "name": "YashanDB: 离线数据文件数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50818",
+    "key": "yashandb.tablespace.in_use",
+    "name": "YashanDB: 表空间使用率（全库）",
+    "value_type": "0"
+  },
+  {
+    "itemid": "50819",
+    "key": "yashandb.tablespace.maxsize",
+    "name": "YashanDB: 表空间最大容量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50820",
+    "key": "yashandb.tablespace.offline",
+    "name": "YashanDB: 离线表空间数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50859",
+    "key": "yashandb.tablespace.offline_count",
+    "name": "YashanDB: 离线表空间数量",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50821",
+    "key": "yashandb.tablespace.size",
+    "name": "YashanDB: 表空间当前总大小",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50822",
+    "key": "yashandb.tablespace.used",
+    "name": "YashanDB: 表空间已使用字节数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50809",
+    "key": "yashandb.user_commits",
+    "name": "YashanDB: 用户提交次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50810",
+    "key": "yashandb.user_rollbacks",
+    "name": "YashanDB: 用户回滚次数",
+    "value_type": "3"
+  },
+  {
+    "itemid": "50786",
+    "key": "yashandb.user_sessions",
+    "name": "YashanDB: 用户会话数",
+    "value_type": "3"
+  }
+]

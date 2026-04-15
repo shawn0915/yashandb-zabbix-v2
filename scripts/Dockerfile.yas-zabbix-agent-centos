@@ -1,0 +1,73 @@
+# YasZabbix Agent - CentOS Stream 9 (glibc) + Zabbix Agent2 7.0 + Python3 + yaspy
+# 使用 CentOS 基础镜像确保与 YashanDB C 驱动（glibc 编译）的二进制兼容性
+#
+# 构建（在 analyze/ 目录下执行）:
+#   docker build --no-cache -f Dockerfile.yas-zabbix-agent-centos -t yas-zabbix-agent:v2.5 .
+#
+# 运行:
+#   docker run -d --name yas-zabbix-agent \
+#     --network zabbix-net \
+#     -v yas_agent_libs:/opt/yashandb/yashandb_yasdb_home:ro \
+#     -e YASDB_HOST=yas_oracle \
+#     -e YASDB_PORT=1688 \
+#     -e YASDB_USER=sys \
+#     -e YASDB_PASSWORD=Cod-2022 \
+#     -e ZBX_SERVER_HOST=zabbix-server \
+#     -e ZBX_HOSTNAME=yas-zabbix-agent \
+#     yas-zabbix-agent:v2.5
+
+FROM docker.1ms.run/zabbix/zabbix-agent2:centos-7.0-latest
+
+USER root
+
+# 安装 Python3、pip、编译工具（CentOS Stream 9 使用 microdnf，去掉与 curl-minimal 冲突的 curl）
+RUN microdnf install -y \
+        python3 \
+        python3-devel \
+        python3-pip \
+        gcc \
+        gcc-c++ \
+        make \
+        git \
+        libffi-devel \
+        openssl-devel \
+    && microdnf clean all
+
+# 验证 Python3
+RUN python3 --version && gcc --version | head -1
+
+# 安装 yaspy Python 驱动（从 GitHub，含 C 扩展 yacapi，需要 gcc + python3-devel）
+RUN git clone --depth=1 --recurse-submodules https://github.com/yashan-technologies/yashandb-python.git /tmp/yashandb-python \
+    && pip3 install --no-cache-dir /tmp/yashandb-python \
+    && rm -rf /tmp/yashandb-python
+
+# 验证 yaspy 可以 import（此时 libyascli.so 未挂载，会有 warning，但 import 应成功）
+RUN python3 -c "import yaspy; print('yaspy import OK')" 2>&1 || echo "[WARN] yaspy import warning - expected without libyascli.so"
+
+# 创建脚本目录
+RUN mkdir -p /etc/zabbix/scripts/yashandb
+
+# 复制采集脚本和 wrapper
+COPY scripts/yashandb_monitor.py /etc/zabbix/scripts/yashandb/
+COPY wrapper.sh /etc/zabbix/scripts/yashandb/wrapper.sh
+
+# 复制 UserParameter 配置（Docker 专用，通过 wrapper.sh 调用）
+COPY config/yashandb_userparameter_docker.conf /etc/zabbix/zabbix_agentd.d/yashandb.conf
+
+# 复制 entrypoint
+COPY agent-entrypoint-centos.sh /usr/local/bin/agent-entrypoint.sh
+
+RUN chmod +x \
+    /etc/zabbix/scripts/yashandb/yashandb_monitor.py \
+    /etc/zabbix/scripts/yashandb/wrapper.sh \
+    /usr/local/bin/agent-entrypoint.sh
+
+# 默认连接参数（通过 docker run -e 覆盖）
+ENV YASDB_HOST=yas_oracle
+ENV YASDB_PORT=1688
+ENV YASDB_USER=sys
+ENV YASDB_PASSWORD=CHANGE_ME
+# C 驱动库路径（挂载卷后的路径）
+ENV YASDB_LIB_PATH=/opt/yashandb/yashandb_yasdb_home/lib
+
+ENTRYPOINT ["/usr/local/bin/agent-entrypoint.sh"]

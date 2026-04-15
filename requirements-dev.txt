@@ -1,0 +1,5 @@
+# 测试依赖
+pytest>=7.0.0
+
+# YashanDB Python 驱动（集成测试需要）
+# yashandb-python-driver

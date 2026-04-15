@@ -1,0 +1,26 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-7.4.3, pluggy-1.6.0 -- C:\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: c:\Users\DELL\WorkBuddy\Claw\yas_zabbix
+configfile: pytest.ini
+plugins: asyncio-0.23.5, cov-4.1.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 1 item
+
+tests/test_monitor_cli.py::TestArgParsing::test_required_args_present FAILED [100%]
+
+================================== FAILURES ===================================
+__________________ TestArgParsing.test_required_args_present __________________
+
+self = <tests.test_monitor_cli.TestArgParsing object at 0x0000025468411790>
+
+    def test_required_args_present(self):
+        """必须参数不全时应报错"""
+        with pytest.raises(SystemExit):
+>           m.parse_args([])  # 无任何参数
+E           TypeError: parse_args() takes 0 positional arguments but 1 was given
+
+tests\test_monitor_cli.py:23: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_monitor_cli.py::TestArgParsing::test_required_args_present
+============================== 1 failed in 0.18s ==============================

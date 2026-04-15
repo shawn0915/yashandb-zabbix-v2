@@ -1,0 +1,56 @@
+# YasZabbix Agent - Zabbix 6.0 Alpine + Python3 + YashanDB C 驱动
+# 构建: docker build -t yas-zabbix-agent .
+# 运行时: docker run -d --name yas-zabbix-agent -v /path/to/yashandb/lib:/opt/yashandb/lib:ro ...
+
+FROM zabbix/zabbix-agent:alpine-6.0-latest
+
+USER root
+
+# 安装 Python3、编译工具、git（python3-dev 提供 Python.h 头文件，yaspy 编译必须）
+RUN apk add --no-cache \
+    python3 \
+    python3-dev \
+    py3-pip \
+    py3-setuptools \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
+    make \
+    curl \
+    git \
+    ca-certificates
+
+# 验证
+RUN python3 --version && gcc --version | head -1
+
+# 安装 yaspy Python 驱动（从 GitHub，含 yacapi C 驱动子模块）
+RUN git clone --depth=1 --recurse-submodules https://github.com/yashan-technologies/yashandb-python.git /tmp/yashandb-python \
+    && pip3 install --no-cache-dir --break-system-packages /tmp/yashandb-python \
+    && rm -rf /tmp/yashandb-python \
+    && python3 -c "import yaspy; print('yaspy OK')" 2>&1 || echo "yaspy install result above"
+
+# 复制 yas_zabbix 采集脚本和 wrapper
+COPY scripts/yashandb_monitor.py /etc/zabbix/scripts/yashandb/
+COPY scripts/agent-entrypoint.sh /usr/local/bin/agent-entrypoint.sh
+COPY wrapper.sh /etc/zabbix/scripts/yashandb/wrapper.sh
+RUN chmod +x /etc/zabbix/scripts/yashandb/yashandb_monitor.py \
+    && chmod +x /usr/local/bin/agent-entrypoint.sh \
+    && chmod +x /etc/zabbix/scripts/yashandb/wrapper.sh
+
+# 复制 UserParameter 配置（使用 Docker 专用版本，含 v2.5 Phase 1&2 全部指标）
+COPY config/yashandb_userparameter_docker.conf /etc/zabbix/zabbix_agentd.d/yashandb.conf
+
+# 修复 Alpine 镜像 Include 路径问题（在构建阶段修复，避免运行时依赖）
+RUN sed -i '/# Include=\/usr\/local\/etc\/zabbix_agentd.conf.d\/\*.conf/a Include=/etc/zabbix/zabbix_agentd.d/*.conf' /etc/zabbix/zabbix_agentd.conf \
+    && sed -i 's/^#.*UnsafeUserParameters.*/UnsafeUserParameters=1/' /etc/zabbix/zabbix_agentd.conf \
+    && echo "[yas-zabbix] Include and UnsafeUserParameters fixed at build time"
+
+ENTRYPOINT ["/usr/local/bin/agent-entrypoint.sh"]
+
+# 默认连接参数（通过 docker run -e 覆盖）
+ENV YASDB_HOST=yas_oracle
+ENV YASDB_PORT=1688
+ENV YASDB_USER=sys
+ENV YASDB_PASSWORD=CHANGE_ME
+ENV LD_LIBRARY_PATH=/opt/yashandb/lib:${LD_LIBRARY_PATH}

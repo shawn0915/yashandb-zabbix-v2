@@ -1,63 +1,138 @@
-# YashanDB 监控插件配置示例
+# YashanDB Zabbix Agent UserParameter 配置示例
 # 文件位置: /etc/zabbix/zabbix_agentd.d/yashandb.conf
 # 或 Windows: C:\Program Files\Zabbix Agent 2\zabbix_agentd.d\yashandb.conf
 #
 # 注意：请勿将此文件提交到 Git（已在 .gitignore 中排除加密版本）
 # 敏感配置请使用 yashandb_<instance>.conf 命名，.gitignore 已忽略该格式
+#
+# ================================================================
+# v2.0 指标命名规范：
+#   yashandb.db.*  — 原生监控指标（v1.0 兼容）
+#   yashandb.*     — Datadog Oracle 兼容指标
+#   yashandb.tablespace.* — 表空间指标（含 LLD 自动发现）
+#
+# 推荐使用配置文件方式（避免密码明文），见文件末尾
+# ================================================================
 
-# ================================================================
-# 方式一：UserParameter（推荐，通过 Zabbix Agent 本地执行）
-# ================================================================
-#
-# 语法: UserParameter=<key>,<command>
-# 其中 <key> 需与 Zabbix 模板中的监控项键值一致
-#
-# 替换以下路径为实际安装路径：
-#   SCRIPT_DIR  = YashanDB 监控脚本目录
-#   PYTHON_BIN  = Python 3.x 可执行文件路径
-#   YASHANDB_HOST / PORT / USER / PASS = 连接信息
-#
 # ----------------------------------------------------------------
-
+# 方式一：每个指标单独一行 UserParameter（示例行，取消注释即可使用）
+# ----------------------------------------------------------------
 ### Linux 示例 ###
 # SCRIPT_DIR=/etc/zabbix/scripts/yas_zabbix
 # PYTHON_BIN=/usr/bin/python3
 
-# 实例状态
-#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.status
+### 实例状态（原生） ###
+#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.status
+#UserParameter=yashandb.db.version,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.version
+#UserParameter=yashandb.db.uptime,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.uptime
+#UserParameter=yashandb.db.mode,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.mode
 
-# 数据库版本
-#UserParameter=yashandb.db.version,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.version
+### 会话（原生 + Datadog 兼容） ###
+#UserParameter=yashandb.db.sessions.active,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sessions.active
+#UserParameter=yashandb.db.sessions.total,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sessions.total
+#UserParameter=yashandb.db.sessions.waiting,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sessions.waiting
+#UserParameter=yashandb.db.sessions.max,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sessions.max
+#UserParameter=yashandb.active_background,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.active_background
+#UserParameter=yashandb.active_sessions,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.active_sessions
+#UserParameter=yashandb.process_limit,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.process_limit
+#UserParameter=yashandb.session_count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.session_count
+#UserParameter=yashandb.session_limit_usage,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.session_limit_usage
+#UserParameter=yashandb.user_sessions,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.user_sessions
 
-# 运行时长
-#UserParameter=yashandb.db.uptime,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.uptime
+### 内存（原生 + Datadog 兼容） ###
+#UserParameter=yashandb.db.memory.buffer_pool_size,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.memory.buffer_pool_size
+#UserParameter=yashandb.db.memory.buffer_pool_used,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.memory.buffer_pool_used
+#UserParameter=yashandb.db.memory.buffer_pool_hit,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.memory.buffer_pool_hit
+#UserParameter=yashandb.db.memory.vm_pool_size,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.memory.vm_pool_size
+#UserParameter=yashandb.db.memory.vm_pool_used,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.memory.vm_pool_used
+#UserParameter=yashandb.buffer_cachehit_ratio,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.buffer_cachehit_ratio
+#UserParameter=yashandb.cache_blocks_lost,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.cache_blocks_lost
+#UserParameter=yashandb.physical_memory_gb,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.physical_memory_gb
+#UserParameter=yashandb.shared_memory_size,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.shared_memory_size
+#UserParameter=yashandb.shared_pool_free,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.shared_pool_free
 
-# 会话统计
-#UserParameter=yashandb.sessions.active,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sessions.active
-#UserParameter=yashandb.sessions.total,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sessions.total
+### PGA 进程内存（Datadog 兼容） ###
+#UserParameter=yashandb.process.pga_allocated_memory,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.process.pga_allocated_memory
+#UserParameter=yashandb.process.pga_freeable_memory,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.process.pga_freeable_memory
+#UserParameter=yashandb.process.pga_max_memory,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.process.pga_max_memory
+#UserParameter=yashandb.process.pga_used_memory,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.process.pga_used_memory
 
-# Buffer Pool
-#UserParameter=yashandb.memory.buffer_pool_hit,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.memory.buffer_pool_hit
+### Redo 日志（原生 + Datadog 兼容） ###
+#UserParameter=yashandb.db.redo.flush_speed,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.redo.flush_speed
+#UserParameter=yashandb.db.redo.free_space,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.redo.free_space
+#UserParameter=yashandb.db.redo.checkpoint_lag,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.redo.checkpoint_lag
+#UserParameter=yashandb.redo_allocation_hit_ratio,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.redo_allocation_hit_ratio
+#UserParameter=yashandb.redo_generated,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.redo_generated
+#UserParameter=yashandb.redo_writes,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.redo_writes
 
-# 慢 SQL 数量
-#UserParameter=yashandb.sql.slow_count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.sql.slow_count
+### SQL 性能（原生 + Datadog 兼容） ###
+#UserParameter=yashandb.db.sql.executions_per_sec,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sql.executions_per_sec
+#UserParameter=yashandb.db.sql.avg_elapsed_ms,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sql.avg_elapsed_ms
+#UserParameter=yashandb.db.sql.slow_count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sql.slow_count
+#UserParameter=yashandb.db.sql.parse_count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.sql.parse_count
+#UserParameter=yashandb.hard_parses,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.hard_parses
+#UserParameter=yashandb.memory_sorts_ratio,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.memory_sorts_ratio
 
-# 表空间自动发现（LLD）
-#UserParameter=yashandb.tablespace.discovery,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric db.tablespace.discovery
+### 等待事件（原生） ###
+#UserParameter=yashandb.db.wait.top_event,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.wait.top_event
+#UserParameter=yashandb.db.wait.total_waits,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.wait.total_waits
+#UserParameter=yashandb.db.wait.time_waited_ms,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.wait.time_waited_ms
 
-# 带参数的表空间指标（使用 $1 接受 Zabbix 传入的参数）
-#UserParameter=yashandb.tablespace.pct_used[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "db.tablespace.pct_used[$1]"
-#UserParameter=yashandb.tablespace.free[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "db.tablespace.free[$1]"
+### 锁（原生） ###
+#UserParameter=yashandb.db.lock.count,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.lock.count
+#UserParameter=yashandb.db.lock.blocking_sessions,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db.lock.blocking_sessions
+
+### 物理/逻辑 I/O（Datadog 兼容） ###
+#UserParameter=yashandb.physical_reads,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.physical_reads
+#UserParameter=yashandb.physical_writes,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.physical_writes
+#UserParameter=yashandb.consistent_read_changes,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.consistent_read_changes
+#UserParameter=yashandb.db_block_changes,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.db_block_changes
+#UserParameter=yashandb.logical_reads,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.logical_reads
+#UserParameter=yashandb.disk_sorts,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.disk_sorts
+#UserParameter=yashandb.sorts_per_user_call,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.sorts_per_user_call
+
+### 事务（Datadog 兼容） ###
+#UserParameter=yashandb.dbwr_checkpoints,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.dbwr_checkpoints
+#UserParameter=yashandb.user_commits,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.user_commits
+#UserParameter=yashandb.user_rollbacks,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.user_rollbacks
+
+### CPU 与系统资源（Datadog 兼容） ###
+#UserParameter=yashandb.host_cpu_utilization,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.host_cpu_utilization
+#UserParameter=yashandb.num_cpus,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.num_cpus
+#UserParameter=yashandb.os_load,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.os_load
+
+### 网络与延迟（Datadog 兼容） ###
+#UserParameter=yashandb.avg_synchronous_single_block_read_latency,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.avg_synchronous_single_block_read_latency
+#UserParameter=yashandb.network_traffic_volume,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.network_traffic_volume
+
+### 索引（Datadog 兼容） ###
+#UserParameter=yashandb.branch_node_splits,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.branch_node_splits
+#UserParameter=yashandb.leaf_node_splits,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.leaf_node_splits
+
+### 表空间 LLD（自动发现） ###
+#UserParameter=yashandb.tablespace.discovery,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.discovery
+#UserParameter=yashandb.tablespace.in_use,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.in_use
+#UserParameter=yashandb.tablespace.maxsize,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.maxsize
+#UserParameter=yashandb.tablespace.offline,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.offline
+#UserParameter=yashandb.tablespace.size,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.size
+#UserParameter=yashandb.tablespace.used,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.tablespace.used
+
+### 表空间 LLD 原型（$1 由 Zabbix 传入表空间名） ###
+#UserParameter=yashandb.tablespace.total[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "yashandb.tablespace.total[$1]"
+#UserParameter=yashandb.tablespace.free[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "yashandb.tablespace.free[$1]"
+#UserParameter=yashandb.tablespace.used[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "yashandb.tablespace.used[$1]"
+#UserParameter=yashandb.tablespace.pct_used[*],/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric "yashandb.tablespace.pct_used[$1]"
+
+### 全局缓存 RAC（Datadog 兼容，单机通常为 0） ###
+#UserParameter=yashandb.gc_average_cr_get_time,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.gc_average_cr_get_time
+#UserParameter=yashandb.gc_average_current_get_time,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password "YourPassword" --metric yashandb.gc_average_current_get_time
+
+### Windows 示例（Zabbix Agent 2）###
+#UserParameter=yashandb.db.status,C:\Python3\python.exe C:\zabbix\scripts\yas_zabbix\yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password YourPassword --metric yashandb.db.status
 
 # ----------------------------------------------------------------
-### Windows 示例（Zabbix Agent 2）###
-
-# 实例状态
-#UserParameter=yashandb.db.status,C:\Python3\python.exe C:\zabbix\scripts\yas_zabbix\yashandb_monitor.py --host 127.0.0.1 --port 1688 --user sys --password YourPassword --metric db.status
-
-# ================================================================
 # 方式二：使用配置文件（推荐生产环境，避免密码明文在配置中暴露）
-# ================================================================
+# ----------------------------------------------------------------
 # 创建 /etc/zabbix/scripts/yas_zabbix/config/yashandb.conf（已在 .gitignore 排除）
 # 内容格式：
 #   [yashandb]
@@ -66,5 +141,5 @@
 #   user = sys
 #   password = YourPassword
 #
-# 然后使用 --config 参数：
-#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --config /etc/zabbix/scripts/yas_zabbix/config/yashandb.conf --host x --user x --password x --metric db.status
+# 然后所有 UserParameter 使用 --config 参数（密码用 x 占位）：
+#UserParameter=yashandb.db.status,/usr/bin/python3 /etc/zabbix/scripts/yas_zabbix/yashandb_monitor.py --config /etc/zabbix/scripts/yas_zabbix/config/yashandb.conf --host x --user x --password x --metric yashandb.db.status

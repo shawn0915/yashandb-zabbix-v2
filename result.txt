@@ -1,0 +1,250 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-7.4.3, pluggy-1.6.0 -- C:\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: c:\Users\DELL\WorkBuddy\Claw\yas_zabbix
+configfile: pytest.ini
+plugins: asyncio-0.23.5, cov-4.1.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 190 items
+
+tests/test_bulk.py::TestBulkScript::test_bulk_module_imports PASSED      [  0%]
+tests/test_bulk.py::TestBulkScript::test_bulk_metrics_count PASSED       [  1%]
+tests/test_bulk.py::TestBulkScript::test_bulk_includes_key_metrics PASSED [  1%]
+tests/test_bulk.py::TestBulkScript::test_bulk_no_duplicates PASSED       [  2%]
+tests/test_bulk.py::TestBulkMainMocked::test_bulk_main_with_mock_conn PASSED [  2%]
+tests/test_bulk.py::TestBulkMetricCoverage::test_bulk_covers_all_dispatched_keys FAILED [  3%]
+tests/test_monitor_cli.py::TestArgParsing::test_required_args_present FAILED [  3%]
+tests/test_monitor_cli.py::TestArgParsing::test_minimal_valid_args PASSED [  4%]
+tests/test_monitor_cli.py::TestArgParsing::test_all_args PASSED          [  4%]
+tests/test_monitor_cli.py::TestLoadConfig::test_load_config_file_not_found PASSED [  5%]
+tests/test_monitor_cli.py::TestLoadConfig::test_load_config_valid PASSED [  5%]
+tests/test_monitor_cli.py::TestLoadConfig::test_load_config_no_yashandb_section PASSED [  6%]
+tests/test_monitor_cli.py::TestMetricHelp::test_help_contains_native_metrics PASSED [  6%]
+tests/test_monitor_cli.py::TestMetricHelp::test_help_contains_datadog_metrics PASSED [  7%]
+tests/test_monitor_cli.py::TestMetricHelp::test_help_contains_na_section PASSED [  7%]
+tests/test_monitor_cli.py::TestDispatchCompleteness::test_all_documented_metrics_in_dispatch FAILED [  8%]
+tests/test_monitor_integration.py::TestLiveDBBasic::test_db_status_ok SKIPPED [  8%]
+tests/test_monitor_integration.py::TestLiveDBBasic::test_db_version_is_string SKIPPED [  9%]
+tests/test_monitor_integration.py::TestLiveDBBasic::test_db_uptime_is_positive SKIPPED [ 10%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.status] SKIPPED [ 10%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.version] SKIPPED [ 11%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.uptime] SKIPPED [ 11%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.mode] SKIPPED [ 12%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sessions.active] SKIPPED [ 12%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sessions.total] SKIPPED [ 13%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sessions.waiting] SKIPPED [ 13%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sessions.max] SKIPPED [ 14%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.memory.buffer_pool_size] SKIPPED [ 14%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.memory.buffer_pool_used] SKIPPED [ 15%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.memory.buffer_pool_hit] SKIPPED [ 15%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.memory.vm_pool_size] SKIPPED [ 16%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.memory.vm_pool_used] SKIPPED [ 16%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.redo.flush_speed] SKIPPED [ 17%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.redo.free_space] SKIPPED [ 17%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.redo.checkpoint_lag] SKIPPED [ 18%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sql.executions_per_sec] SKIPPED [ 18%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sql.avg_elapsed_ms] SKIPPED [ 19%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sql.slow_count] SKIPPED [ 20%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.sql.parse_count] SKIPPED [ 20%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.wait.top_event] SKIPPED [ 21%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.wait.total_waits] SKIPPED [ 21%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.wait.time_waited_ms] SKIPPED [ 22%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.lock.count] SKIPPED [ 22%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db.lock.blocking_sessions] SKIPPED [ 23%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.active_background] SKIPPED [ 23%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.active_sessions] SKIPPED [ 24%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.process_limit] SKIPPED [ 24%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.session_count] SKIPPED [ 25%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.session_limit_usage] SKIPPED [ 25%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.user_sessions] SKIPPED [ 26%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.hard_parses] SKIPPED [ 26%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.memory_sorts_ratio] SKIPPED [ 27%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.buffer_cachehit_ratio] SKIPPED [ 27%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.cache_blocks_lost] SKIPPED [ 28%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.physical_memory_gb] SKIPPED [ 28%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.shared_memory_size] SKIPPED [ 29%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.shared_pool_free] SKIPPED [ 30%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.process.pga_allocated_memory] SKIPPED [ 30%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.process.pga_freeable_memory] SKIPPED [ 31%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.process.pga_max_memory] SKIPPED [ 31%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.process.pga_used_memory] SKIPPED [ 32%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.physical_reads] SKIPPED [ 32%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.physical_writes] SKIPPED [ 33%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.consistent_read_changes] SKIPPED [ 33%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.db_block_changes] SKIPPED [ 34%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.logical_reads] SKIPPED [ 34%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.disk_sorts] SKIPPED [ 35%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.sorts_per_user_call] SKIPPED [ 35%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.redo_allocation_hit_ratio] SKIPPED [ 36%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.redo_generated] SKIPPED [ 36%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.redo_writes] SKIPPED [ 37%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.dbwr_checkpoints] SKIPPED [ 37%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.user_commits] SKIPPED [ 38%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.user_rollbacks] SKIPPED [ 38%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.host_cpu_utilization] SKIPPED [ 39%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.num_cpus] SKIPPED [ 40%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.os_load] SKIPPED [ 40%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.avg_synchronous_single_block_read_latency] SKIPPED [ 41%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.network_traffic_volume] SKIPPED [ 41%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.branch_node_splits] SKIPPED [ 42%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.leaf_node_splits] SKIPPED [ 42%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.tablespace.in_use] SKIPPED [ 43%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.tablespace.maxsize] SKIPPED [ 43%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.tablespace.offline] SKIPPED [ 44%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.tablespace.size] SKIPPED [ 44%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.tablespace.used] SKIPPED [ 45%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.gc_average_cr_get_time] SKIPPED [ 45%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_metric_executes_without_error[yashandb.gc_average_current_get_time] SKIPPED [ 46%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.tablespace.discovery] SKIPPED [ 46%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.tablespace.discovery] SKIPPED [ 47%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.tablespace.total[MAIN]] SKIPPED [ 47%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.tablespace.used[MAIN]] SKIPPED [ 48%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.tablespace.free[MAIN]] SKIPPED [ 48%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.tablespace.pct_used[MAIN]] SKIPPED [ 49%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.tablespace.total[MAIN]] SKIPPED [ 50%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.tablespace.used[MAIN]] SKIPPED [ 50%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.tablespace.free[MAIN]] SKIPPED [ 51%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.tablespace.pct_used[MAIN]] SKIPPED [ 51%]
+tests/test_monitor_integration.py::TestLiveDBMetrics::test_param_metric_executes_without_error[yashandb.db.stat[physical reads]] SKIPPED [ 52%]
+tests/test_monitor_integration.py::TestLiveDBReturnTypes::test_session_counts_are_int SKIPPED [ 52%]
+tests/test_monitor_integration.py::TestLiveDBReturnTypes::test_memory_metrics_are_numeric_positive SKIPPED [ 53%]
+tests/test_monitor_integration.py::TestLiveDBReturnTypes::test_pct_metrics_in_valid_range SKIPPED [ 53%]
+tests/test_monitor_integration.py::TestLiveDBTablespaceDiscovery::test_discovery_returns_valid_json SKIPPED [ 54%]
+tests/test_monitor_metrics.py::TestConnection::test_get_connection_no_yaspy PASSED [ 54%]
+tests/test_monitor_metrics.py::TestConnection::test_query_one_returns_first_column FAILED [ 55%]
+tests/test_monitor_metrics.py::TestConnection::test_query_one_returns_none_on_empty FAILED [ 55%]
+tests/test_monitor_metrics.py::TestConnection::test_query_all_returns_rows FAILED [ 56%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.status] PASSED [ 56%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.version] PASSED [ 57%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.uptime] PASSED [ 57%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.mode] PASSED [ 58%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sessions.active] PASSED [ 58%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sessions.total] PASSED [ 59%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sessions.waiting] PASSED [ 60%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sessions.max] PASSED [ 60%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.memory.buffer_pool_size] PASSED [ 61%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.memory.buffer_pool_used] PASSED [ 61%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.memory.buffer_pool_hit] PASSED [ 62%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.memory.vm_pool_size] PASSED [ 62%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.memory.vm_pool_used] PASSED [ 63%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.redo.flush_speed] PASSED [ 63%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.redo.free_space] PASSED [ 64%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.redo.checkpoint_lag] PASSED [ 64%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sql.executions_per_sec] PASSED [ 65%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sql.avg_elapsed_ms] PASSED [ 65%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sql.slow_count] PASSED [ 66%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.sql.parse_count] PASSED [ 66%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.wait.top_event] PASSED [ 67%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.wait.total_waits] PASSED [ 67%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.wait.time_waited_ms] PASSED [ 68%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.lock.count] PASSED [ 68%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db.lock.blocking_sessions] PASSED [ 69%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.active_background] PASSED [ 70%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.active_sessions] PASSED [ 70%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.process_limit] PASSED [ 71%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.session_count] PASSED [ 71%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.session_limit_usage] PASSED [ 72%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.user_sessions] PASSED [ 72%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.hard_parses] PASSED [ 73%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.memory_sorts_ratio] PASSED [ 73%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.buffer_cachehit_ratio] PASSED [ 74%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.cache_blocks_lost] PASSED [ 74%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.physical_memory_gb] PASSED [ 75%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.shared_memory_size] PASSED [ 75%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.shared_pool_free] PASSED [ 76%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.process.pga_allocated_memory] PASSED [ 76%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.process.pga_freeable_memory] PASSED [ 77%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.process.pga_max_memory] PASSED [ 77%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.process.pga_used_memory] PASSED [ 78%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.physical_reads] PASSED [ 78%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.physical_writes] PASSED [ 79%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.consistent_read_changes] PASSED [ 80%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.db_block_changes] PASSED [ 80%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.logical_reads] PASSED [ 81%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.disk_sorts] PASSED [ 81%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.sorts_per_user_call] PASSED [ 82%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.redo_allocation_hit_ratio] PASSED [ 82%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.redo_generated] PASSED [ 83%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.redo_writes] PASSED [ 83%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.dbwr_checkpoints] PASSED [ 84%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.user_commits] PASSED [ 84%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.user_rollbacks] PASSED [ 85%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.host_cpu_utilization] PASSED [ 85%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.num_cpus] PASSED [ 86%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.os_load] PASSED [ 86%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.avg_synchronous_single_block_read_latency] PASSED [ 87%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.network_traffic_volume] PASSED [ 87%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.branch_node_splits] PASSED [ 88%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.leaf_node_splits] PASSED [ 88%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.tablespace.in_use] PASSED [ 89%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.tablespace.maxsize] PASSED [ 90%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.tablespace.offline] PASSED [ 90%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.tablespace.size] PASSED [ 91%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.tablespace.used] PASSED [ 91%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.gc_average_cr_get_time] PASSED [ 92%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_dispatches_without_error[yashandb.gc_average_current_get_time] PASSED [ 92%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_unknown_key_raises PASSED [ 93%]
+tests/test_monitor_metrics.py::TestCollectMetricDispatch::test_collect_metric_param_format PASSED [ 93%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_db_status_returns_int PASSED [ 94%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_db_uptime_returns_int FAILED [ 94%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_session_counts_return_int PASSED [ 95%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_percentage_metrics_return_numeric PASSED [ 95%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_memory_metrics_return_numeric PASSED [ 96%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_tablespace_metrics_return_numeric PASSED [ 96%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_tablespace_discovery_returns_json PASSED [ 97%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_lock_metrics_return_int PASSED [ 97%]
+tests/test_monitor_metrics.py::TestMetricReturnTypes::test_gc_metrics_return_int PASSED [ 98%]
+tests/test_monitor_metrics.py::TestMainFunction::test_status_metric_when_conn_fails PASSED [ 98%]
+tests/test_monitor_metrics.py::TestMainFunction::test_unknown_metric_exits_with_error FAILED [ 99%]
+tests/test_monitor_metrics.py::TestNullHandling::test_collect_metric_with_null_result PASSED [100%]
+
+================================== FAILURES ===================================
+_________ TestBulkMetricCoverage.test_bulk_covers_all_dispatched_keys _________
+tests\test_bulk.py:146: in test_bulk_covers_all_dispatched_keys
+    assert not missing_from_bulk, \
+E   AssertionError: BULK_METRICS 缺少以下 dispatch key: ['yashandb.db.tablespace.discovery', 'yashandb.db.tablespace.total', 'yashandb.db.tablespace.used', 'yashandb.db.tablespace.free', 'yashandb.db.tablespace.pct_used', 'yashandb.db.stat']
+E   assert not ['yashandb.db.tablespace.discovery', 'yashandb.db.tablespace.total', 'yashandb.db.tablespace.used', 'yashandb.db.tablespace.free', 'yashandb.db.tablespace.pct_used', 'yashandb.db.stat']
+__________________ TestArgParsing.test_required_args_present __________________
+tests\test_monitor_cli.py:23: in test_required_args_present
+    m.parse_args([])  # 无任何参数
+E   TypeError: parse_args() takes 0 positional arguments but 1 was given
+______ TestDispatchCompleteness.test_all_documented_metrics_in_dispatch _______
+tests\test_monitor_cli.py:160: in test_all_documented_metrics_in_dispatch
+    assert not missing, \
+E   AssertionError: METRIC_HELP 中有 55 个指标未在 dispatch 中实现: ['yashandb.active_background_on_cpu', 'yashandb.active_sessions_on_cpu', 'yashandb.asm_diskgroup.free_mb', 'yashandb.asm_diskgroup.offline_disks', 'yashandb.asm_diskgroup.total_mb', 'yashandb.cache_blocks_corrupt', 'yashandb.consistent_read_gets', 'yashandb.data_guard.apply_lag', 'yashandb.data_guard.transport_lag', 'yashandb.database_cpu_time_ratio', 'yashandb.database_wait_time_ratio', 'yashandb.db_block_gets', 'yashandb.enqueue_deadlocks', 'yashandb.enqueue_timeouts', 'yashandb.execute_without_parse', 'yashandb.gc_average_cr_get_time', 'yashandb.gc_average_current_get_time', 'yashandb.gc_cr_block_received', 'yashandb.gc_current_block_received', 'yashandb.library_cachehit_ratio', 'yashandb.logons', 'yashandb.long_table_scans', 'yashandb.parse_failures', 'yashandb.pga_cache_hit', 'yashandb.physical_read_bytes', 'yashandb.physical_read_io_requests', 'yashandb.physical_read_total_bytes', 'yashandb.physical_read_total_io_requests', 'yashandb.physical_reads_direct', 'yashandb.physical_reads_direct_lobs', 'yashandb.physical_write_bytes', 'yashandb.physical_write_io_requests', 'yashandb.physical_write_total_bytes', 'yashandb.physical_write_total_io_requests', 'yashandb.physical_writes_direct', 'yashandb.physical_writes_direct_lobs', 'yashandb.process.pga_maximum_memory', 'yashandb.resource_manager.cpu_consumed_time', 'yashandb.resource_manager.cpu_wait_time', 'yashandb.row_cache_hit_ratio', 'yashandb.rows_per_sort', 'yashandb.service_response_time', 'yashandb.session.inactive_seconds', 'yashandb.soft_parse_ratio', 'yashandb.tablespace.discovery', 'yashandb.tablespace.free', 'yashandb.tablespace.in_use', 'yashandb.tablespace.maxsize', 'yashandb.tablespace.offline', 'yashandb.tablespace.pct_used', 'yashandb.tablespace.size', 'yashandb.tablespace.total', 'yashandb.tablespace.used', 'yashandb.temp_space_used', 'yashandb.total_parse_count']
+E   assert not {'yashandb.active_background_on_cpu', 'yashandb.active_sessions_on_cpu', 'yashandb.asm_diskgroup.free_mb', 'yashandb.asm_diskgroup.offline_disks', 'yashandb.asm_diskgroup.total_mb', 'yashandb.cache_blocks_corrupt', ...}
+_____________ TestConnection.test_query_one_returns_first_column ______________
+tests\test_monitor_metrics.py:35: in test_query_one_returns_first_column
+    assert result == 42
+E   assert 1 == 42
+_____________ TestConnection.test_query_one_returns_none_on_empty _____________
+tests\test_monitor_metrics.py:43: in test_query_one_returns_none_on_empty
+    assert result is None
+E   assert 1 is None
+_________________ TestConnection.test_query_all_returns_rows __________________
+tests\test_monitor_metrics.py:51: in test_query_all_returns_rows
+    assert result == [(1,), (2,), (3,)]
+E   assert [(1,)] == [(1,), (2,), (3,)]
+E     Right contains 2 more items, first extra item: (2,)
+E     Full diff:
+E     - [(1,), (2,), (3,)]
+E     + [(1,)]
+______________ TestMetricReturnTypes.test_db_uptime_returns_int _______________
+tests\test_monitor_metrics.py:174: in test_db_uptime_returns_int
+    assert isinstance(val, int)
+E   AssertionError: assert False
+E    +  where False = isinstance('23.4.7.100', int)
+____________ TestMainFunction.test_unknown_metric_exits_with_error ____________
+tests\test_monitor_metrics.py:346: in test_unknown_metric_exits_with_error
+    assert "ZBX_NOTSUPPORTED" in captured_out
+E   AssertionError: assert 'ZBX_NOTSUPPORTED' in ''
+=========================== short test summary info ===========================
+FAILED tests/test_bulk.py::TestBulkMetricCoverage::test_bulk_covers_all_dispatched_keys
+FAILED tests/test_monitor_cli.py::TestArgParsing::test_required_args_present
+FAILED tests/test_monitor_cli.py::TestDispatchCompleteness::test_all_documented_metrics_in_dispatch
+FAILED tests/test_monitor_metrics.py::TestConnection::test_query_one_returns_first_column
+FAILED tests/test_monitor_metrics.py::TestConnection::test_query_one_returns_none_on_empty
+FAILED tests/test_monitor_metrics.py::TestConnection::test_query_all_returns_rows
+FAILED tests/test_monitor_metrics.py::TestMetricReturnTypes::test_db_uptime_returns_int
+FAILED tests/test_monitor_metrics.py::TestMainFunction::test_unknown_metric_exits_with_error
+================== 8 failed, 95 passed, 87 skipped in 0.29s ===================

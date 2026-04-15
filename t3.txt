@@ -1,0 +1,45 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-7.4.3, pluggy-1.6.0 -- C:\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: c:\Users\DELL\WorkBuddy\Claw\yas_zabbix
+configfile: pytest.ini
+plugins: asyncio-0.23.5, cov-4.1.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 1 item
+
+tests/test_bulk.py::TestBulkMetricCoverage::test_bulk_covers_all_dispatched_keys FAILED [100%]
+
+================================== FAILURES ===================================
+_________ TestBulkMetricCoverage.test_bulk_covers_all_dispatched_keys _________
+
+self = <tests.test_bulk.TestBulkMetricCoverage object at 0x000001F488851E50>
+
+    def test_bulk_covers_all_dispatched_keys(self):
+        """
+        dispatch 中所有不含参数的 key 都应在 BULK_METRICS 中。
+        这确保新增指标后 bulk 不会遗漏。
+        """
+        import yashandb_monitor as m
+        import yashandb_bulk as b
+    
+        # 提取 dispatch 中的所有 base key（不含参数）
+        # dispatch dict 的 key 是 base_key
+        # 找 dispatch 中不以 [ 结尾的 key
+        dispatch_keys = []
+        for line in m.collect_metric.__code__.co_consts:
+            if isinstance(line, str) and line.startswith("yashandb.") and "[" not in line:
+                dispatch_keys.append(line)
+    
+        dispatch_keys = list(dict.fromkeys(dispatch_keys))
+    
+        # BULK_METRICS 应包含所有 dispatch key
+        missing_from_bulk = [k for k in dispatch_keys if k not in b.BULK_METRICS]
+>       assert not missing_from_bulk, \
+            f"BULK_METRICS 缺少以下 dispatch key: {missing_from_bulk}"
+E       AssertionError: BULK_METRICS 缺少以下 dispatch key: ['yashandb.db.tablespace.discovery', 'yashandb.db.tablespace.total', 'yashandb.db.tablespace.used', 'yashandb.db.tablespace.free', 'yashandb.db.tablespace.pct_used', 'yashandb.db.stat']
+E       assert not ['yashandb.db.tablespace.discovery', 'yashandb.db.tablespace.total', 'yashandb.db.tablespace.used', 'yashandb.db.tablespace.free', 'yashandb.db.tablespace.pct_used', 'yashandb.db.stat']
+
+tests\test_bulk.py:146: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_bulk.py::TestBulkMetricCoverage::test_bulk_covers_all_dispatched_keys
+============================== 1 failed in 0.11s ==============================

@@ -16,8 +16,9 @@ env/
 *.log
 logs/
 
-# Config files with sensitive data
+# Config files with sensitive data (含密码，不提交)
 config/yashandb_*.conf
+config/yashandb.conf
 
 # OS
 .DS_Store

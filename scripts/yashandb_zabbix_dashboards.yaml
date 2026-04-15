@@ -1,0 +1,734 @@
+# YashanDB Zabbix Dashboard Definitions
+# Zabbix 7.4.x compatible
+# Import via: Zabbix Web UI → Dashboards → Create dashboard → Import (paste YAML)
+#
+# 4 个 Dashboard 布局说明：
+#   1. YashanDB 概览    - 顶部 KPI 摘要行 + 状态总览
+#   2. YashanDB 性能    - QPS/TPS、延迟、等待事件、资源消耗
+#   3. YashanDB 会话    - 会话分布、用户分组、锁与阻塞
+#   4. YashanDB 存储    - 表空间使用率、各类表空间容量
+#
+# 前置条件：
+#   主机需链接模板 "YashanDB by Zabbix Agent" 才能解析 {#HOST.NAME} 等变量
+# =============================================================================
+
+dashboard_list:
+  - name: "YashanDB 概览"
+    uuid: "a0e8c000000000000000000000000001"
+    description: |
+      参考 Oracle Enterprise Manager（OEM）概览页面设计：
+      - 顶部 5 个大数字 KPI：状态 / 版本 / 会话数 / 表空间使用率 / QPS
+      - 中部三列：实例信息 | Redo/Checkpoint | Top 等待事件
+      - 底部：告警摘要 + QPS/TPS 趋势图
+    pages:
+      - name: "概览"
+        widgets:
+          # ========== 第一行：5 个 KPI 大数字 ==========
+          - type: svggraph
+            name: "数据库状态"
+            x: 0; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.status"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: gauge
+              thresholds:
+                - color: "FF6B6B"; value: "0"
+                - color: "4CAF50"; value: "1"
+              name: "数据库状态"
+              advance_refresh_intervals: []
+
+          - type: text
+            name: "版本"
+            x: 4; y: 0; width: 4; height: 2
+            fields:
+              content: |
+                > **Enterprise Edition Release 23.4.7.100**
+                >
+                > 采集时间：{DATE} {TIME}
+
+          - type: svggraph
+            name: "会话数"
+            x: 8; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.active"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.sessions.total"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: bar
+              name: "活跃会话 / 总会话"
+              advance_refresh_intervals: []
+
+          - type: svggraph
+            name: "表空间使用率"
+            x: 12; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.in_use"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: gauge
+              thresholds:
+                - color: "4CAF50"; value: "80"
+                - color: "FFC107"; value: "90"
+                - color: "FF5252"; value: "95"
+              name: "表空间使用率"
+              advance_refresh_intervals: []
+
+          - type: svggraph
+            name: "QPS"
+            x: 16; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.qps"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              name: "QPS (每秒查询数)"
+              advance_refresh_intervals: []
+
+          # ========== 第二行：3 列详情 ==========
+          - type: text
+            name: "实例信息"
+            x: 0; y: 2; width: 6; height: 3
+            fields:
+              content: |
+                ### 实例信息
+                | 属性 | 值 |
+                |------|-----|
+                | 运行时间 | {ITEM.VALUE:169:yashandb.db.uptime} 秒 |
+                | 数据库模式 | {ITEM.VALUE:170:yashandb.db.mode} |
+                | 最大会话数 | {ITEM.VALUE:171:yashandb.db.sessions.max} |
+                | 进程限制使用率 | {ITEM.VALUE:172:yashandb.db.process_limit_pct}% |
+                | 会话限制使用率 | {ITEM.VALUE:173:yashandb.db.session_limit_pct}% |
+
+          - type: text
+            name: "Redo / Checkpoint"
+            x: 6; y: 2; width: 6; height: 3
+            fields:
+              content: |
+                ### Redo 与 Checkpoint
+                | 指标 | 值 |
+                |------|-----|
+                | Redo 生成速度 | {ITEM.VALUE:150:yashandb.db.redo.flush_speed} B/s |
+                | Redo 空闲空间 | {ITEM.VALUE:151:yashandb.db.redo.free_space} B |
+                | Checkpoint 延迟 | {ITEM.VALUE:152:yashandb.db.redo.checkpoint_lag} s |
+                | 近24h日志切换 | {ITEM.VALUE:153:yashandb.db.redo.log_switches} 次 |
+                | Redo 写入次数 | {ITEM.VALUE:154:yashandb.redo_writes} |
+
+          - type: text
+            name: "Top 等待事件"
+            x: 12; y: 2; width: 8; height: 3
+            fields:
+              content: |
+                ### Top 等待事件
+                > 当前：{ITEM.VALUE:155:yashandb.db.wait.top_event}
+                >
+                > 等待次数：{ITEM.VALUE:156:yashandb.db.wait.total_waits}　　等待时间：{ITEM.VALUE:157:yashandb.db.wait.time_waited_ms} ms
+
+          # ========== 第三行：趋势图 ==========
+          - type: svggraph
+            name: "QPS / TPS 趋势"
+            x: 0; y: 5; width: 12; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.qps"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.tps"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: true
+              show_legend: true
+              graph_type: line
+              name: "QPS / TPS 趋势 (最近1小时)"
+              advance_refresh_intervals:
+                - "10m"
+
+          - type: svggraph
+            name: "会话数趋势"
+            x: 12; y: 5; width: 8; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.active"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.sessions.waiting"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.session.inactive"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: true
+              show_legend: true
+              graph_type: line
+              name: "会话数趋势 (活跃 / 等待 / 非活跃)"
+              advance_refresh_intervals:
+                - "10m"
+
+          # ========== 第四行：内存与 SQL ==========
+          - type: svggraph
+            name: "Buffer Pool"
+            x: 0; y: 9; width: 8; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.memory.buffer_pool_used"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.memory.buffer_pool_size"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "Buffer Pool 使用量 / 总量"
+
+          - type: svggraph
+            name: "SQL 执行趋势"
+            x: 8; y: 9; width: 8; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sql.executions_per_sec"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.sql.slow_count"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "每秒执行次数 / 慢查询数"
+
+          - type: svggraph
+            name: "VM Pool"
+            x: 16; y: 9; width: 4; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.memory.vm_pool_used"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.memory.vm_pool_size"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "VM Pool 使用量 / 总量"
+
+  - name: "YashanDB 性能"
+    uuid: "a0e8c000000000000000000000000002"
+    description: |
+      参考 MySQL Enterprise Monitor / Oracle AWR 报告性能页面设计：
+      - 顶部：QPS / TPS / 平均响应时间 / P95/P99 延迟（4 列 KPI）
+      - 左：等待事件分析（柱状图 + 饼图）
+      - 中：SQL 执行统计（软硬解析比、慢查询）
+      - 右：I/O 分析（物理读写次数与延迟）
+      - 底部：CPU / 内存 / PGA 使用趋势
+    pages:
+      - name: "性能监控"
+        widgets:
+          # ========== 第一行：5 大性能 KPI ==========
+          - type: svggraph
+            name: "QPS"
+            x: 0; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.qps"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              name: "每秒查询数 (QPS)"
+
+          - type: svggraph
+            name: "TPS"
+            x: 4; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.tps"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              name: "每秒事务数 (TPS)"
+
+          - type: svggraph
+            name: "平均响应时间"
+            x: 8; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sql.avg_elapsed_ms"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              name: "平均 SQL 响应时间 (ms)"
+
+          - type: svggraph
+            name: "P95 延迟"
+            x: 12; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.sql.p95_elapsed_ms"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              thresholds:
+                - color: "FF5252"; value: "1000"
+              name: "P95 延迟 (ms)"
+
+          - type: svggraph
+            name: "P99 延迟"
+            x: 16; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.sql.p99_elapsed_ms"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              thresholds:
+                - color: "FF5252"; value: "2000"
+              name: "P99 延迟 (ms)"
+
+          # ========== 第二行：解析 / 慢查询 / 命中率 ==========
+          - type: svggraph
+            name: "软硬解析比率"
+            x: 0; y: 2; width: 6; height: 3
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.soft_parse_ratio"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              thresholds:
+                - color: "FFC107"; value: "95"
+              name: "软解析比率 (%)（低于95%告警）"
+
+          - type: svggraph
+            name: "慢查询数"
+            x: 6; y: 2; width: 6; height: 3
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sql.slow_count"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: area
+              name: "慢查询计数"
+
+          - type: svggraph
+            name: "缓冲池命中率"
+            x: 12; y: 2; width: 8; height: 3
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.memory.buffer_pool_hit"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: line
+              thresholds:
+                - color: "FF5252"; value: "95"
+              name: "Buffer Pool 命中率 (%)"
+
+          # ========== 第三行：等待事件 ==========
+          - type: svggraph
+            name: "等待时间趋势"
+            x: 0; y: 5; width: 10; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.wait.time_waited_ms"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.wait.total_waits"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "等待时间与次数趋势"
+
+          - type: text
+            name: "Top 等待事件（文本）"
+            x: 10; y: 5; width: 6; height: 4
+            fields:
+              content: |
+                ### Top 等待事件
+                > 当前瓶颈：{ITEM.VALUE:160:yashandb.db.wait.top_event}
+                >
+                > 等待总数：{ITEM.VALUE:161:yashandb.db.waits_total}
+                > 等待时间：{ITEM.VALUE:162:yashandb.db.wait_time_total} ms
+                >
+                > ---
+                > Avg 单次等待：
+                > {ITEM.VALUE:163:yashandb.avg_synchronous_single_block_read_latency} ms
+
+          # ========== 第四行：I/O ==========
+          - type: svggraph
+            name: "物理 I/O"
+            x: 0; y: 9; width: 10; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.disk.total_reads"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.disk.total_writes"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "物理读 / 物理写 次数趋势"
+
+          - type: svggraph
+            name: "I/O 延迟"
+            x: 10; y: 9; width: 10; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.disk.total_read_time"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.disk.total_write_time"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "物理读 / 物理写 时间 (ms)"
+
+  - name: "YashanDB 会话"
+    uuid: "a0e8c000000000000000000000000003"
+    description: |
+      参考 Oracle OEM 会话管理页面设计：
+      - 顶部：活跃 / 等待 / 非活跃 / 总会话（4 KPI）
+      - 左：按用户分组会话数（饼图）
+      - 中：会话趋势 + 连接限制使用率
+      - 右：锁分析 + 阻塞会话
+      - 底部：长事务 + Top SQL
+    pages:
+      - name: "会话管理"
+        widgets:
+          # ========== 第一行：4 KPI ==========
+          - type: svggraph
+            name: "活跃会话"
+            x: 0; y: 0; width: 5; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.active"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: bar
+              name: "活跃会话数"
+
+          - type: svggraph
+            name: "等待会话"
+            x: 5; y: 0; width: 5; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.waiting"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: bar
+              name: "等待会话数"
+
+          - type: svggraph
+            name: "非活跃会话"
+            x: 10; y: 0; width: 5; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.session.inactive"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: bar
+              name: "非活跃会话数"
+
+          - type: svggraph
+            name: "总会话数"
+            x: 15; y: 0; width: 5; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.total"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.sessions.max"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "总会话数 / 最大会话数"
+
+          # ========== 第二行：会话趋势 + 连接限制 ==========
+          - type: svggraph
+            name: "会话趋势"
+            x: 0; y: 2; width: 10; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.sessions.active"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.sessions.waiting"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.session.inactive"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.session.background"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: true
+              show_legend: true
+              graph_type: stacked
+              name: "会话类型趋势（活跃/等待/非活跃/后台）"
+
+          - type: svggraph
+            name: "资源限制使用率"
+            x: 10; y: 2; width: 10; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.process_limit_pct"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.session_limit_pct"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.resource_limit.usage_pct"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              thresholds:
+                - color: "FFC107"; value: "80"
+                - color: "FF5252"; value: "90"
+              name: "资源限制使用率（进程/会话/综合）"
+
+          # ========== 第三行：锁分析 ==========
+          - type: svggraph
+            name: "锁统计"
+            x: 0; y: 6; width: 6; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.lock.count"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.lock.blocking_sessions"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.enqueue.locks"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.enqueue.requests"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "锁数量 / 阻塞会话 / Enqueue"
+
+          - type: text
+            name: "会话健康"
+            x: 6; y: 6; width: 7; height: 4
+            fields:
+              content: |
+                ### 会话健康检查
+                | 检查项 | 状态 |
+                |------|------|
+                | 阻塞会话 | {ITEM.VALUE:180:yashandb.db.lock.blocking_sessions} |
+                | Enqueue 锁请求 | {ITEM.VALUE:181:yashandb.enqueue.requests} |
+                | 长事务数 | {ITEM.VALUE:182:yashandb.db.long_transactions} |
+                | 非活跃会话 | {ITEM.VALUE:183:yashandb.session.inactive} |
+                | 后台会话 | {ITEM.VALUE:184:yashandb.session.background} |
+                | 活跃会话详情 | {ITEM.VALUE:185:yashandb.session.active_detail} |
+
+          - type: text
+            name: "Top SQL"
+            x: 13; y: 6; width: 7; height: 4
+            fields:
+              content: |
+                ### Top SQL（文本）
+                | 维度 | SQL_ID |
+                |------|--------|
+                | Buffer Gets 最高 | {ITEM.VALUE:186:yashandb.sql.top_buffer_gets_sql} |
+                | Disk Reads 最高 | {ITEM.VALUE:187:yashandb.sql.top_disk_reads_sql} |
+                | 执行次数最高 | {ITEM.VALUE:188:yashandb.sql.top_executions_sql} |
+                > 完整 Top SQL 列表请查看"SQL监控"子仪表盘
+
+  - name: "YashanDB 存储"
+    uuid: "a0e8c000000000000000000000000004"
+    description: |
+      参考 Oracle OEM 存储管理页面设计：
+      - 顶部：表空间使用率（全库）、永久表空间容量、Undo 使用率、临时表空间使用率
+      - 左：表空间类型分布（饼图：PERMANENT / TEMPORARY / UNDO）
+      - 中：各表空间使用率排名（按使用率倒序）
+      - 右：容量预测（剩余天数）、数据文件健康
+      - 底部：段统计、Invalid 对象统计、归档日志
+    pages:
+      - name: "存储监控"
+        widgets:
+          # ========== 第一行：5 个存储 KPI ==========
+          - type: svggraph
+            name: "表空间使用率（全库）"
+            x: 0; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.in_use"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: gauge
+              thresholds:
+                - color: "4CAF50"; value: "80"
+                - color: "FFC107"; value: "90"
+                - color: "FF5252"; value: "95"
+              name: "表空间使用率 (%)"
+
+          - type: svggraph
+            name: "临时表空间使用率"
+            x: 4; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.temp_usage_pct"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: gauge
+              thresholds:
+                - color: "4CAF50"; value: "80"
+                - color: "FF5252"; value: "90"
+              name: "临时表空间使用率 (%)"
+
+          - type: svggraph
+            name: "Undo 表空间使用率"
+            x: 8; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.undo_usage_pct"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: gauge
+              thresholds:
+                - color: "4CAF50"; value: "80"
+                - color: "FF5252"; value: "90"
+              name: "Undo 表空间使用率 (%)"
+
+          - type: svggraph
+            name: "剩余可用天数"
+            x: 12; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.tablespace_remaining_days"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: false
+              graph_type: bar
+              thresholds:
+                - color: "FF5252"; value: "30"
+              name: "表空间剩余天数"
+
+          - type: svggraph
+            name: "总容量"
+            x: 16; y: 0; width: 4; height: 2
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.size"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.tablespace.maxsize"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "表空间总容量 / 最大容量"
+
+          # ========== 第二行：表空间类型 + 离线 ==========
+          - type: svggraph
+            name: "表空间类型容量趋势"
+            x: 0; y: 2; width: 12; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.tablespace.by_type[PERMANENT]"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.tablespace.by_type[TEMPORARY]"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.tablespace.by_type[UNDO]"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: stacked
+              name: "PERMANENT / TEMPORARY / UNDO 表空间容量趋势"
+
+          - type: text
+            name: "数据文件健康"
+            x: 12; y: 2; width: 8; height: 4
+            fields:
+              content: |
+                ### 数据文件健康
+                | 检查项 | 状态 |
+                |------|------|
+                | 离线表空间数 | {ITEM.VALUE:190:yashandb.tablespace.offline} |
+                | 离线数据文件数 | {ITEM.VALUE:191:yashandb.datafile.offline_count} |
+                | 数据文件最大使用率 | {ITEM.VALUE:192:yashandb.db.datafile_max_usage_pct}% |
+                | 离线表空间数(v2.2) | {ITEM.VALUE:193:yashandb.tablespace.offline_count} |
+
+          # ========== 第三行：Invalid 对象 / 归档 / 段 ==========
+          - type: svggraph
+            name: "Invalid 对象趋势"
+            x: 0; y: 6; width: 8; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.db.invalid_objects"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.invalid_indexes"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.db.stale_statistics"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "Invalid 对象 / 索引 / 陈旧统计"
+
+          - type: svggraph
+            name: "归档日志趋势"
+            x: 8; y: 6; width: 8; height: 4
+            fields:
+              source_type: item
+              itemids:
+                - key: "yashandb.archived_log.count_today"
+                  host: "YashanDB by Zabbix Agent"
+                - key: "yashandb.archive_log.count"
+                  host: "YashanDB by Zabbix Agent"
+              show_work_period: false
+              show_legend: true
+              graph_type: line
+              name: "当天归档日志数 / 归档总数"
+
+          - type: text
+            name: "段统计"
+            x: 16; y: 6; width: 4; height: 4
+            fields:
+              content: |
+                ### 段与对象统计
+                | 指标 | 值 |
+                |------|-----|
+                | 段总数 | {ITEM.VALUE:194:yashandb.segment.total_count} |
+                | 最大空间表空间 | {ITEM.VALUE:195:yashandb.segment.top_tablespace} |
+                | 归档日志总数 | {ITEM.VALUE:196:yashandb.archive_log.count} |
+                | 最早归档时间 | {ITEM.VALUE:197:yashandb.archive_log.first_time} |
+                | 归档失败次数 | {ITEM.VALUE:198:yashandb.archiver.failed} |

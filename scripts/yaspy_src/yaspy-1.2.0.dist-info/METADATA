@@ -1,0 +1,33 @@
+Metadata-Version: 2.4
+Name: yaspy
+Version: 1.2.0
+Summary: the python driver for YashanDB
+Home-page: https://github.com/yashan-technologies/yashandb-python
+Author: sics
+License: MulanPSL-2.0
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: C
+Classifier: Topic :: Database
+Classifier: Development Status :: 3 - Alpha
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
+# yaspy|崖山数据库python语言驱动程序
+
+yaspy 是 YashanDB 官方 Python 语言数据库驱动，依赖崖山数据库C驱动。
+
+### 特性
+
+- ✅ Python 3.6+
+- ✅ 连接池支持
+- ✅ 预处理语句与批量操作
+- ✅ 事务支持
+- ✅ 多版本运行时检测与自动适配
+
+### 兼容性说明
+
+| 驱动版本 | 版本发布时间 | 新特性         | 最低兼容C驱动版本 | 完全支持C驱动版本 |
+| -------- | ------------ | -------------- | ----------------- | ----------------- |
+| 1.0.1    | 2026.3.18    | 支持线程池能力 | v23.4.1.100       | v23.4.4.100       |

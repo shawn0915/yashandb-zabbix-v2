@@ -1,0 +1,3128 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  YashanDB Zabbix 监控模板
+  版本:     2.2.0
+  适配:     Zabbix 7.0 LTS + YashanDB 23.4 LTS
+  导入方式: Zabbix Web UI → 配置 → 模板 → 导入
+
+  v2.0 更新（2026-04-06）：
+  - 新增 42 个 Datadog Oracle 兼容指标（指标来源：DataDog/integrations-core oracle/metadata.csv）
+  - 原有 30 个原生指标统一迁移至 yashandb.db.* 命名空间
+  - 总计 72 个可用监控指标 + LLD 自动发现
+
+  YashanDB 适配要点（来自实机测试）：
+  - V_$SYSSTAT 统计项使用大写无括号名称（如 'DISK READS' 而非 'physical reads'）
+  - V$SGA 替代 Oracle 的 V$SGAINFO
+  - V$OSSTAT 提供系统资源指标（NUM_CPUS, PHYSICAL_MEMORY_BYTES）
+  - V$SGASTAT 的 POOL='SHARE POOL'（注意大写）
+  - 以下 Oracle 视图/功能在 YashanDB 中不存在（指标标记为 N/A）：
+    V$LIBRARYCACHE, V$ROWCACHE, V$PGASTAT, V$SYS_TIME_MODEL,
+    V$DATABASE_BLOCK_CORRUPTION, V$TEMP_SPACE_HEADER,
+    V$ASM_DISKGROUP, V$DATAGUARD_STATS, V$RSRC_CONSUMER_GROUP
+  - V_$SESSION 无 STATE 和 LAST_CALL_ET 列
+-->
+<zabbix_export>
+    <version>7.0</version>
+    <template_groups>
+        <template_group>
+            <uuid>a571c0d144b14fd4a87a9d9b2aa9fcd6</uuid>
+            <name>Templates/Databases</name>
+        </template_group>
+    </template_groups>
+    <templates>
+        <template>
+            <uuid>4a3e9f8b2c1d4e5f6a7b8c9d0e1f2a3b</uuid>
+            <template>YashanDB by Zabbix Agent</template>
+            <name>YashanDB by Zabbix Agent</name>
+            <description>YashanDB 23.4 LTS 数据库监控模板 v2.0&#13;&#10;&#13;&#10;v2.0 新增 42 个 Datadog Oracle 兼容指标（来自 DataDog/integrations-core），总计 72 个可用指标 + LLD。&#13;&#10;&#13;&#10;监控维度：实例状态、会话（6项）、SQL解析（2）、缓存/内存（5）、PGA（4）、物理I/O（2）、逻辑读（3）、排序（2）、Redo（3）、事务（3）、CPU（3）、网络（2）、索引（2）、表空间（6+LLD）、全局缓存（2）。&#13;&#10;&#13;&#10;不支持（N/A）的 46 个指标：ASM、Data Guard、Resource Manager、RAC块接收、V_$SYS_TIME_MODEL 等 YashanDB 未实现的功能。&#13;&#10;&#13;&#10;前置条件：&#13;&#10;1. Zabbix Agent 2 已安装&#13;&#10;2. YashanDB Python 驱动 (yaspy) 已安装&#13;&#10;3. yashandb_monitor.py 已部署到 {$YASHANDB.SCRIPT_DIR}&#13;&#10;4. zabbix_agentd.d/yashandb.conf 已配置 UserParameter</description>
+            <groups>
+                <group>
+                    <name>Templates/Databases</name>
+                </group>
+            </groups>
+            <macros>
+                <!-- 连接参数 -->
+                <macro>
+                    <macro>{$YASHANDB.HOST}</macro>
+                    <value>127.0.0.1</value>
+                    <description>YashanDB 主机地址</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PORT}</macro>
+                    <value>1688</value>
+                    <description>YashanDB 端口</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.USER}</macro>
+                    <value>sys</value>
+                    <description>监控账号用户名</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PASSWORD}</macro>
+                    <value></value>
+                    <type>SECRET_TEXT</type>
+                    <description>监控账号密码（敏感，请勿明文提交）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SCRIPT_DIR}</macro>
+                    <value>/etc/zabbix/scripts/yas_zabbix</value>
+                    <description>监控脚本所在目录</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PYTHON}</macro>
+                    <value>/usr/bin/python3</value>
+                    <description>Python 3 可执行文件路径</description>
+                </macro>
+                <!-- 告警阈值 -->
+                <macro>
+                    <macro>{$YASHANDB.SESSIONS.MAX.WARN}</macro>
+                    <value>80</value>
+                    <description>会话使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.BUFFER.HIT.MIN}</macro>
+                    <value>90</value>
+                    <description>Buffer Pool 命中率最低阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.TABLESPACE.WARN}</macro>
+                    <value>80</value>
+                    <description>表空间使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.TABLESPACE.CRIT}</macro>
+                    <value>90</value>
+                    <description>表空间使用率严重告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SLOW_SQL.WARN}</macro>
+                    <value>10</value>
+                    <description>慢 SQL 数量告警阈值</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.LOCK.WARN}</macro>
+                    <value>20</value>
+                    <description>锁数量告警阈值</description>
+                </macro>
+                <!-- Datadog 兼容指标阈值 -->
+                <macro>
+                    <macro>{$YASHANDB.PROCESS_LIMIT.WARN}</macro>
+                    <value>90</value>
+                    <description>进程限制使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SESSION_LIMIT.WARN}</macro>
+                    <value>85</value>
+                    <description>会话限制使用率告警阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.SHARED_POOL_FREE.MIN}</macro>
+                    <value>20</value>
+                    <description>共享池空闲内存最低百分比（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.CPU.UTIL.MAX}</macro>
+                    <value>90</value>
+                    <description>CPU 利用率最高阈值（%）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.PGA_ALLOC.MAX}</macro>
+                    <value>10737418240</value>
+                    <description>PGA 分配内存告警阈值（字节，默认 10GB）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.REDO_GEN.MAX}</macro>
+                    <value>10485760</value>
+                    <description>Redo 生成速率告警阈值（字节/秒，默认 10MB/s）</description>
+                </macro>
+                <!-- v2.2 新增：New Relic 适配宏 -->
+    <macro>
+      <macro>{$YASHANDB.PROCESS_LIMIT.WARN}</macro>
+      <value>80</value>
+      <description>进程限制使用率告警阈值（%，默认 80）</description>
+    </macro>
+    <macro>
+      <macro>{$YASHANDB.SESSION_LIMIT.WARN}</macro>
+      <value>80</value>
+      <description>会话限制使用率告警阈值（%，默认 80）</description>
+    </macro>
+
+  <!-- v2.1 新增宏 -->
+                <macro>
+                    <macro>{$YASHANDB.LONG_TXN.WARN}</macro>
+                    <value>1</value>
+                    <description>长事务告警阈值（事务数，默认 1：只要有长事务就告警）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.LONG_TXN.HIGH}</macro>
+                    <value>5</value>
+                    <description>长事务严重阈值（事务数，默认 5 个以上触发 AVERAGE 级告警）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.HA_DELAY.WARN}</macro>
+                    <value>1</value>
+                    <description>主备同步延迟告警阈值（gap 数量，默认 1：有间隙即告警）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.HA_DELAY.HIGH}</macro>
+                    <value>5</value>
+                    <description>主备同步延迟严重阈值（gap 数量，默认 5：严重滞后）</description>
+                </macro>
+                <macro>
+                    <macro>{$YASHANDB.LOG_SWITCH.WARN}</macro>
+                    <value>50</value>
+                    <description>近24小时 Redo 日志切换次数告警阈值（默认 50 次）</description>
+                </macro>
+            </macros>
+
+            <!-- ================================================================
+                 原生指标（yashandb.db.*）
+                 ================================================================ -->
+            <items>
+                <!-- ==================== 实例状态 ==================== -->
+                <item>
+                    <uuid>1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d</uuid>
+                    <name>YashanDB: 实例状态</name>
+                    <key>yashandb.db.status</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>数据库实例运行状态：1=正常，0=异常</description>
+                    <valuemap>
+                        <name>YashanDB DB Status</name>
+                    </valuemap>
+                    <triggers>
+                        <trigger>
+                            <uuid>aa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.status)=0</expression>
+                            <name>YashanDB: 实例不可用 ({HOST.NAME})</name>
+                            <priority>DISASTER</priority>
+                            <description>YashanDB 数据库实例无法连接或不可用</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e</uuid>
+                    <name>YashanDB: 版本</name>
+                    <key>yashandb.db.version</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>数据库版本号</description>
+                </item>
+                <item>
+                    <uuid>3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f</uuid>
+                    <name>YashanDB: 启动时长</name>
+                    <key>yashandb.db.uptime</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>s</units>
+                    <description>数据库启动时长（秒）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.uptime) &lt; 300 and last(/YashanDB by Zabbix Agent/yashandb.db.status) = 1</expression>
+                            <name>YashanDB: 数据库最近重启 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>数据库在 5 分钟内发生了重启</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a</uuid>
+                    <name>YashanDB: 运行模式</name>
+                    <key>yashandb.db.mode</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>数据库运行模式（PRIMARY/STANDBY）</description>
+                </item>
+
+                <!-- ==================== 会话（原 db.sessions.*） ==================== -->
+                <item>
+                    <uuid>5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b</uuid>
+                    <name>YashanDB: 活跃会话数</name>
+                    <key>yashandb.db.sessions.active</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前 ACTIVE 状态的会话数量（V$SESSION WHERE STATUS='ACTIVE'）</description>
+                </item>
+                <item>
+                    <uuid>6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c</uuid>
+                    <name>YashanDB: 总会话数</name>
+                    <key>yashandb.db.sessions.total</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前总会话数量</description>
+                </item>
+                <item>
+                    <uuid>7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d</uuid>
+                    <name>YashanDB: 等待中会话数</name>
+                    <key>yashandb.db.sessions.waiting</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前处于非 Idle 等待状态的会话数量</description>
+                </item>
+                <item>
+                    <uuid>8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e</uuid>
+                    <name>YashanDB: 最大会话限制</name>
+                    <key>yashandb.db.sessions.max</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>数据库 sessions 参数配置的最大会话数</description>
+                </item>
+
+                <!-- ==================== 内存（原 db.memory.*） ==================== -->
+                <item>
+                    <uuid>9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f</uuid>
+                    <name>YashanDB: Buffer Pool 总大小</name>
+                    <key>yashandb.db.memory.buffer_pool_size</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Buffer Pool 总容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a</uuid>
+                    <name>YashanDB: Buffer Pool 已使用</name>
+                    <key>yashandb.db.memory.buffer_pool_used</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Buffer Pool 已使用容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b</uuid>
+                    <name>YashanDB: Buffer Pool 命中率</name>
+                    <key>yashandb.db.memory.buffer_pool_hit</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>Buffer Pool 缓存命中率（%），越高越好</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>cc3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.memory.buffer_pool_hit) &lt; {$YASHANDB.BUFFER.HIT.MIN}</expression>
+                            <name>YashanDB: Buffer Pool 命中率过低 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>Buffer Pool 命中率低于 {$YASHANDB.BUFFER.HIT.MIN}%，可能需要增加 Buffer Pool 大小</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c</uuid>
+                    <name>YashanDB: VM Pool 总大小</name>
+                    <key>yashandb.db.memory.vm_pool_size</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>VM Pool 总容量（字节）</description>
+                </item>
+                <item>
+                    <uuid>3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d</uuid>
+                    <name>YashanDB: VM Pool 已使用</name>
+                    <key>yashandb.db.memory.vm_pool_used</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>VM Pool 已使用容量（字节）</description>
+                </item>
+
+                <!-- ==================== Redo 日志（原 db.redo.*） ==================== -->
+                <item>
+                    <uuid>4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e</uuid>
+                    <name>YashanDB: Redo 刷盘速度</name>
+                    <key>yashandb.db.redo.flush_speed</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>Bps</units>
+                    <description>Redo 日志刷盘速度（字节/秒）</description>
+                </item>
+                <item>
+                    <uuid>5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f</uuid>
+                    <name>YashanDB: Redo 空闲空间</name>
+                    <key>yashandb.db.redo.free_space</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>Redo 日志空闲空间（字节）</description>
+                </item>
+                <item>
+                    <uuid>6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a</uuid>
+                    <name>YashanDB: 检查点落后量</name>
+                    <key>yashandb.db.redo.checkpoint_lag</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>检查点落后当前 LSN 的量</description>
+                </item>
+
+                <!-- ==================== SQL 性能（原 db.sql.*） ==================== -->
+                <item>
+                    <uuid>7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b</uuid>
+                    <name>YashanDB: 每秒 SQL 执行次数</name>
+                    <key>yashandb.db.sql.executions_per_sec</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>executions/s</units>
+                    <description>每秒 SQL 语句执行次数（V$SYSSTAT: EXECUTE COUNT）</description>
+                </item>
+                <item>
+                    <uuid>8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c</uuid>
+                    <name>YashanDB: SQL 平均执行时长</name>
+                    <key>yashandb.db.sql.avg_elapsed_ms</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>V$SQL 中所有 SQL 的平均执行时长（毫秒）</description>
+                </item>
+                <item>
+                    <uuid>9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d</uuid>
+                    <name>YashanDB: 慢 SQL 数量</name>
+                    <key>yashandb.db.sql.slow_count</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>执行时间超过 1 秒的 SQL 数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>dd4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.sql.slow_count) > {$YASHANDB.SLOW_SQL.WARN}</expression>
+                            <name>YashanDB: 慢 SQL 数量过多 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>慢 SQL 数量超过 {$YASHANDB.SLOW_SQL.WARN} 条，建议排查 SQL 执行计划</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e</uuid>
+                    <name>YashanDB: SQL 解析次数（硬解析）</name>
+                    <key>yashandb.db.sql.parse_count</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>SQL 硬解析次数（PARSE COUNT (HARD)，YashanDB V$SYSSTAT）</description>
+                </item>
+
+                <!-- ==================== 等待事件（原 db.wait.*） ==================== -->
+                <item>
+                    <uuid>1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f</uuid>
+                    <name>YashanDB: TOP 等待事件</name>
+                    <key>yashandb.db.wait.top_event</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>CHAR</value_type>
+                    <description>当前等待次数最多的等待事件名称</description>
+                </item>
+                <item>
+                    <uuid>2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a</uuid>
+                    <name>YashanDB: 总等待次数</name>
+                    <key>yashandb.db.wait.total_waits</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>所有非 Idle 等待事件的总等待次数</description>
+                </item>
+                <item>
+                    <uuid>3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b</uuid>
+                    <name>YashanDB: 总等待时间</name>
+                    <key>yashandb.db.wait.time_waited_ms</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>所有非 Idle 等待事件的累计等待时间（毫秒）</description>
+                </item>
+
+                <!-- ==================== 锁（原 db.lock.*） ==================== -->
+                <item>
+                    <uuid>4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c</uuid>
+                    <name>YashanDB: 锁数量</name>
+                    <key>yashandb.db.lock.count</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前数据库中的锁总数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>ee5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.lock.count) > {$YASHANDB.LOCK.WARN}</expression>
+                            <name>YashanDB: 锁数量过多 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>当前锁数量超过 {$YASHANDB.LOCK.WARN}，可能存在锁争用</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d</uuid>
+                    <name>YashanDB: 阻塞中的会话数</name>
+                    <key>yashandb.db.lock.blocking_sessions</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前存在阻塞行为的会话数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>ff6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.lock.blocking_sessions) > 0</expression>
+                            <name>YashanDB: 存在阻塞会话 ({HOST.NAME})</name>
+                            <priority>AVERAGE</priority>
+                            <description>存在会话被其他会话阻塞，请及时排查锁等待情况</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+
+                <!-- ================================================================
+                     Datadog Oracle 兼容指标（yashandb.*）
+                     ================================================================ -->
+
+                <!-- ==================== 会话与连接（6 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000001</uuid>
+                    <name>YashanDB: 活跃后台会话数</name>
+                    <key>yashandb.active_background</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>活跃的后台会话数量（V$SESSION WHERE TYPE='BACKGROUND' AND STATUS='ACTIVE'）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000002</uuid>
+                    <name>YashanDB: 进程限制使用率</name>
+                    <key>yashandb.process_limit</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>进程数占 processes 参数限制的百分比</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000001</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.process_limit) > {$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+                            <name>YashanDB: 进程限制使用率过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>进程使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近系统限制</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000003</uuid>
+                    <name>YashanDB: 会话总数</name>
+                    <key>yashandb.session_count</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前数据库会话总数（V$SESSION）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000004</uuid>
+                    <name>YashanDB: 会话限制使用率</name>
+                    <key>yashandb.session_limit_usage</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>会话数占 sessions 参数限制的百分比</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000002</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.session_limit_usage) > {$YASHANDB.SESSION_LIMIT.WARN}</expression>
+                            <name>YashanDB: 会话限制使用率过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>会话使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近系统限制</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000005</uuid>
+                    <name>YashanDB: 用户会话数</name>
+                    <key>yashandb.user_sessions</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前用户会话数量（V$SESSION WHERE TYPE='USER'）</description>
+                </item>
+
+                <!-- ==================== SQL 解析与执行（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000006</uuid>
+                    <name>YashanDB: 硬解析次数</name>
+                    <key>yashandb.hard_parses</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>硬解析次数（V$SYSSTAT: PARSE COUNT (HARD)）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000007</uuid>
+                    <name>YashanDB: 内存排序比率</name>
+                    <key>yashandb.memory_sorts_ratio</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>在内存中完成的排序占比（SORTS (MEMORY) / 总排序）</description>
+                </item>
+
+                <!-- ==================== 缓存与内存（5 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000008</uuid>
+                    <name>YashanDB: 缓冲区缓存命中率</name>
+                    <key>yashandb.buffer_cachehit_ratio</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>缓冲区缓存命中率（V$BUFFER_POOL_STATISTICS）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000003</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.buffer_cachehit_ratio) &lt; {$YASHANDB.BUFFER.HIT.MIN}</expression>
+                            <name>YashanDB: 缓存命中率低 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>缓冲区缓存命中率低于 {$YASHANDB.BUFFER.HIT.MIN}%</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000009</uuid>
+                    <name>YashanDB: 丢失的缓存块数</name>
+                    <key>yashandb.cache_blocks_lost</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>丢失的缓存块数（V$SYSSTAT: LOST WRITE DETECTED），通常应为 0</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000004</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.cache_blocks_lost) > 0</expression>
+                            <name>YashanDB: 检测到丢失写 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>检测到数据库块丢失写，需要检查存储层</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000010</uuid>
+                    <name>YashanDB: 物理内存大小</name>
+                    <key>yashandb.physical_memory_gb</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>GB</units>
+                    <description>主机物理内存大小（GB，V$OSSTAT: PHYSICAL_MEMORY_BYTES）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000011</uuid>
+                    <name>YashanDB: 共享内存大小</name>
+                    <key>yashandb.shared_memory_size</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>共享内存（SGA）总大小（V$SGA）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000012</uuid>
+                    <name>YashanDB: 共享池空闲内存百分比</name>
+                    <key>yashandb.shared_pool_free</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>共享池空闲内存占比（V$SGASTAT: POOL='SHARE POOL'）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000005</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.shared_pool_free) &lt; {$YASHANDB.SHARED_POOL_FREE.MIN}</expression>
+                            <name>YashanDB: 共享池空闲内存不足 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>共享池空闲内存低于 {$YASHANDB.SHARED_POOL_FREE.MIN}%，可能触发 ORA-04031</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+
+                <!-- ==================== PGA 进程内存（4 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000013</uuid>
+                    <name>YashanDB: 进程 PGA 分配内存</name>
+                    <key>yashandb.process.pga_allocated_memory</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>所有进程分配的 PGA 内存总量（V$PROCESS: PGA_ALLOC_MEM）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000006</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.process.pga_allocated_memory) > {$YASHANDB.PGA_ALLOC.MAX}</expression>
+                            <name>YashanDB: PGA 分配内存过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>PGA 分配内存超过 {$YASHANDB.PGA_ALLOC.MAX} 字节，建议调优 PGA 参数</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000014</uuid>
+                    <name>YashanDB: 进程 PGA 可释放内存</name>
+                    <key>yashandb.process.pga_freeable_memory</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>可释放的 PGA 内存（V$PROCESS: PGA_FREEABLE_MEM）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000015</uuid>
+                    <name>YashanDB: 进程当前最大 PGA 内存</name>
+                    <key>yashandb.process.pga_max_memory</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>单个进程当前最大 PGA 内存（V$PROCESS: PGA_MAX_MEM）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000016</uuid>
+                    <name>YashanDB: 进程 PGA 已用内存</name>
+                    <key>yashandb.process.pga_used_memory</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>所有进程正在使用的 PGA 内存总量（V$PROCESS: PGA_USED_MEM）</description>
+                </item>
+
+                <!-- ==================== 物理 I/O（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000017</uuid>
+                    <name>YashanDB: 物理读取次数</name>
+                    <key>yashandb.physical_reads</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>物理读取次数（V$SYSSTAT: DISK READS，YashanDB 大写无括号命名）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000018</uuid>
+                    <name>YashanDB: 物理写入次数</name>
+                    <key>yashandb.physical_writes</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>物理写入次数（V$SYSSTAT: DISK WRITES）</description>
+                </item>
+
+                <!-- ==================== 逻辑读取（3 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000019</uuid>
+                    <name>YashanDB: 一致性读变更次数</name>
+                    <key>yashandb.consistent_read_changes</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>每秒一致性读变更次数（V$SYSSTAT: CONSISTENT CHANGES）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000020</uuid>
+                    <name>YashanDB: 数据库块变更数</name>
+                    <key>yashandb.db_block_changes</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>每秒数据库块变更次数（V$SYSSTAT: BLOCK CHANGES）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000021</uuid>
+                    <name>YashanDB: 逻辑读取次数</name>
+                    <key>yashandb.logical_reads</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>每秒逻辑读取次数（DB BLOCK GETS + CONSISTENT GETS）</description>
+                </item>
+
+                <!-- ==================== 排序与扫描（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000022</uuid>
+                    <name>YashanDB: 磁盘排序次数</name>
+                    <key>yashandb.disk_sorts</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>磁盘排序次数（V$SYSSTAT: SORTS (DISK)），值越高说明 PGA 可能不足</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000007</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.disk_sorts) > 1000</expression>
+                            <name>YashanDB: 磁盘排序过多 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>磁盘排序次数超过 1000，考虑增加 PGA_AGGREGATE_TARGET</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000023</uuid>
+                    <name>YashanDB: 每次用户调用的排序次数</name>
+                    <key>yashandb.sorts_per_user_call</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <description>每次用户调用发生的排序次数（SORTS(MEMORY+DISK) / USER CALLS）</description>
+                </item>
+
+                <!-- ==================== Redo 日志（3 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000024</uuid>
+                    <name>YashanDB: Redo 空间分配命中率</name>
+                    <key>yashandb.redo_allocation_hit_ratio</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>Redo 空间分配命中率（1 - REDO LOG SPACE REQUESTS / REDO ENTRIES）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000008</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.redo_allocation_hit_ratio) &lt; 99</expression>
+                            <name>YashanDB: Redo 空间分配命中率低 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>Redo 空间分配命中率低于 99%，需要增加 Redo 日志文件大小</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000025</uuid>
+                    <name>YashanDB: Redo 生成速率</name>
+                    <key>yashandb.redo_generated</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>Bps</units>
+                    <description>每秒生成的 Redo 日志字节数（V$SYSSTAT: REDO SIZE）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000009</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.redo_generated) > {$YASHANDB.REDO_GEN.MAX}</expression>
+                            <name>YashanDB: Redo 生成速率过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>Redo 生成速率超过 {$YASHANDB.REDO_GEN.MAX} 字节/秒，可能导致 I/O 瓶颈</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000026</uuid>
+                    <name>YashanDB: Redo 写入次数</name>
+                    <key>yashandb.redo_writes</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>Redo 日志写入次数（V$SYSSTAT: REDO WRITES）</description>
+                </item>
+
+                <!-- ==================== 事务（3 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000027</uuid>
+                    <name>YashanDB: DBWR 检查点完成数</name>
+                    <key>yashandb.dbwr_checkpoints</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>DBWR 检查点完成数（V$SYSSTAT: CHECKPOINTS COMPLETED）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000028</uuid>
+                    <name>YashanDB: 用户提交次数</name>
+                    <key>yashandb.user_commits</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>用户提交次数（V$SYSSTAT: COMMITS）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000029</uuid>
+                    <name>YashanDB: 用户回滚次数</name>
+                    <key>yashandb.user_rollbacks</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>用户回滚次数（V$SYSSTAT: ROLLBACKS）</description>
+                </item>
+
+                <!-- ==================== CPU 与系统资源（3 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000030</uuid>
+                    <name>YashanDB: 主机 CPU 利用率</name>
+                    <key>yashandb.host_cpu_utilization</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>主机 CPU 利用率（V$OSSTAT: BUSY_TIME / (BUSY_TIME+IDLE_TIME)）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000010</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.host_cpu_utilization) > {$YASHANDB.CPU.UTIL.MAX}</expression>
+                            <name>YashanDB: CPU 利用率过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>主机 CPU 利用率超过 {$YASHANDB.CPU.UTIL.MAX}%，请检查系统负载</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000031</uuid>
+                    <name>YashanDB: CPU 核心数</name>
+                    <key>yashandb.num_cpus</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>0</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>主机 CPU 核心数（V$OSSTAT: NUM_CPUS）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000032</uuid>
+                    <name>YashanDB: 操作系统负载</name>
+                    <key>yashandb.os_load</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>操作系统负载（V$OSSTAT: LOAD）</description>
+                </item>
+
+                <!-- ==================== 网络与延迟（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000033</uuid>
+                    <name>YashanDB: 平均同步单块读延迟</name>
+                    <key>yashandb.avg_synchronous_single_block_read_latency</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>平均同步单块读延迟（ms，V$SYSTEM_EVENT: db file sequential read）</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000011</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.avg_synchronous_single_block_read_latency) > 20</expression>
+                            <name>YashanDB: 单块读延迟过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>单块读延迟超过 20ms，可能存在 I/O 瓶颈</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000034</uuid>
+                    <name>YashanDB: 网络流量</name>
+                    <key>yashandb.network_traffic_volume</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>Bps</units>
+                    <description>每秒网络流量（字节，V$SYSSTAT: BYTES SENT VIA SQL*NET TO CLIENT）</description>
+                </item>
+
+                <!-- ==================== 索引（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000035</uuid>
+                    <name>YashanDB: 分支节点分裂次数</name>
+                    <key>yashandb.branch_node_splits</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>索引分支节点分裂次数（V$SYSSTAT: INDEX BRANCH SPLIT）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000036</uuid>
+                    <name>YashanDB: 叶节点分裂次数</name>
+                    <key>yashandb.leaf_node_splits</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>索引叶节点分裂次数（V$SYSSTAT: INDEX LEAF SPLIT）</description>
+                </item>
+
+                <!-- ==================== 表空间 Datadog 版（5 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000037</uuid>
+                    <name>YashanDB: 表空间使用率（全库）</name>
+                    <key>yashandb.tablespace.in_use</key>
+                    <delay>600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>%</units>
+                    <description>所有表空间使用率汇总百分比</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000012</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.in_use) > {$YASHANDB.TABLESPACE.CRIT}</expression>
+                            <name>YashanDB: 表空间使用率严重 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>表空间使用率超过 {$YASHANDB.TABLESPACE.CRIT}%，需要立即扩容</description>
+                        </trigger>
+                        <trigger>
+                            <uuid>c001010000000000000000000000001</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.in_use) > {$YASHANDB.TABLESPACE.WARN}</expression>
+                            <name>YashanDB: 表空间使用率告警 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>表空间使用率超过 {$YASHANDB.TABLESPACE.WARN}%，请注意磁盘空间</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000038</uuid>
+                    <name>YashanDB: 表空间最大容量</name>
+                    <key>yashandb.tablespace.maxsize</key>
+                    <delay>3600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>所有表空间数据文件最大容量之和（DBA_DATA_FILES: MAXBYTES）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000039</uuid>
+                    <name>YashanDB: 离线表空间数量</name>
+                    <key>yashandb.tablespace.offline</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前离线状态（DBA_TABLESPACES: STATUS='OFFLINE'）的表空间数量</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>b001010000000000000000000000013</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.offline) > 0</expression>
+                            <name>YashanDB: 存在离线表空间 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>存在离线表空间，请检查数据文件状态</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000040</uuid>
+                    <name>YashanDB: 表空间当前总大小</name>
+                    <key>yashandb.tablespace.size</key>
+                    <delay>600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>所有表空间当前数据文件总大小（DBA_DATA_FILES: BYTES）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000041</uuid>
+                    <name>YashanDB: 表空间已使用字节数</name>
+                    <key>yashandb.tablespace.used</key>
+                    <delay>600s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <units>B</units>
+                    <description>所有表空间已使用字节数（总大小 - 空闲空间）</description>
+                </item>
+
+                <!-- ==================== 全局缓存 RAC（2 个） ==================== -->
+                <item>
+                    <uuid>a001010000000000000000000000042</uuid>
+                    <name>YashanDB: 全局缓存平均 CR 获取时间</name>
+                    <key>yashandb.gc_average_cr_get_time</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>全局缓存平均 CR 获取时间（ms，V$SYSSTAT: GC CR BLOCK RECEIVE TIME，单机通常为 0）</description>
+                </item>
+                <item>
+                    <uuid>a001010000000000000000000000043</uuid>
+                    <name>YashanDB: 全局缓存平均 current 块获取时间</name>
+                    <key>yashandb.gc_average_current_get_time</key>
+                    <delay>120s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>FLOAT</value_type>
+                    <units>ms</units>
+                    <description>全局缓存平均 current 块获取时间（ms，V$SYSSTAT: GC CURRENT BLOCK RECEIVE TIME，单机通常为 0）</description>
+                </item>
+
+                <!-- ==================== v2.1 新增：YCM 对标指标（3 个） ==================== -->
+                <item>
+                    <uuid>b201010000000000000000000000001</uuid>
+                    <name>YashanDB: 超过3分钟的长事务数</name>
+                    <key>yashandb.db.long_transactions</key>
+                    <delay>60s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>当前活跃事务中持续时间超过3分钟的事务数量（V$TRANSACTION，START_TIME）。长事务可能导致 Undo 空间膨胀和锁持有时间过长。对标 YCM 指标：yashandb_long_transactions。</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>c201010000000000000000000000001</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.long_transactions) >= {$YASHANDB.LONG_TXN.WARN}</expression>
+                            <name>YashanDB: 存在长事务 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>检测到持续时间超过3分钟的活跃事务，数量达到 {$YASHANDB.LONG_TXN.WARN} 个，请及时排查。</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                        <trigger>
+                            <uuid>c201010000000000000000000000002</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.long_transactions) >= {$YASHANDB.LONG_TXN.HIGH}</expression>
+                            <name>YashanDB: 长事务数量过多 ({HOST.NAME})</name>
+                            <priority>AVERAGE</priority>
+                            <description>检测到大量长事务，可能导致 Undo 空间耗尽，请立即处理。</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>b201010000000000000000000000002</uuid>
+                    <name>YashanDB: 主备同步延迟</name>
+                    <key>yashandb.db.ha.sync_delay</key>
+                    <delay>30s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>主库与备库之间的归档序列号间隙数量（V$ARCHIVE_GAP，列：LOW_SEQUENCE#, HIGH_SEQUENCE#）。V$STANDBY_LOG 在 YashanDB 23.4 中不存在，使用 V$ARCHIVE_GAP 替代。单机或无间隙时返回 0。对标 YCM 指标：yashandb_sync_delay。</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>c201010000000000000000000000003</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.ha.sync_delay) >= {$YASHANDB.HA_DELAY.WARN}</expression>
+                            <name>YashanDB: 主备同步延迟过高 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>检测到主备归档序列号间隙达到 {$YASHANDB.HA_DELAY.WARN} 个，请检查网络和备库状态。</description>
+                        </trigger>
+                        <trigger>
+                            <uuid>c201010000000000000000000000004</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.ha.sync_delay) >= {$YASHANDB.HA_DELAY.HIGH}</expression>
+                            <name>YashanDB: 主备同步延迟严重 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>主备归档序列号间隙超过 {$YASHANDB.HA_DELAY.HIGH} 个，数据保护风险较高，请立即处理。</description>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+                <item>
+                    <uuid>b201010000000000000000000000003</uuid>
+                    <name>YashanDB: 近24小时 Redo 日志切换次数</name>
+                    <key>yashandb.db.redo.log_switches</key>
+                    <delay>300s</delay>
+                    <history>7d</history>
+                    <trends>90d</trends>
+                    <value_type>UNSIGNED</value_type>
+                    <description>最近24小时内 Redo 日志组切换次数（V$LOG_HISTORY）。切换频率过高通常意味着 Redo 日志文件过小，建议扩大日志文件尺寸。对标 YCM Redo 切换频率指标。</description>
+                    <triggers>
+                        <trigger>
+                            <uuid>c201010000000000000000000000005</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.db.redo.log_switches) > {$YASHANDB.LOG_SWITCH.WARN}</expression>
+                            <name>YashanDB: Redo 日志切换过于频繁 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>近24小时 Redo 日志切换次数超过 {$YASHANDB.LOG_SWITCH.WARN} 次，建议检查日志文件大小配置。</description>
+                            <manual_close>YES</manual_close>
+                        </trigger>
+                    
+    <!-- ==================== v2.2 新增：New Relic 适配触发器（11 个） ==================== -->
+
+    <trigger>
+      <name>YashanDB: Buffer Busy Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.buffer_busy_waits)&gt;100</expression>
+      <priority>WARNING</priority>
+      <description>Buffer Busy Waits 变化量超过 100 次，可能存在 SGA 缓冲区争用</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Log Buffer Space Waits 突增</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.sga.log_buffer_space_waits)&gt;50</expression>
+      <priority>WARNING</priority>
+      <description>Log Buffer Space Waits 变化量超过 50 次，LGWR 可能存在瓶颈</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 非活跃会话过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.sessions.inactive,5m)&gt;50</expression>
+      <priority>AVERAGE</priority>
+      <description>非活跃会话数量超过 50 个，可能存在会话泄漏或应用连接池问题</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 高 Buffer Gets SQL 执行中</name>
+      <expression>strlen(/YashanDB by Zabbix Agent/yashandb.sql.top_buffer_gets)&gt;0</expression>
+      <priority>WARNING</priority>
+      <description>缓冲区获取超过 10M 的 SQL 正在执行，关注性能影响</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 进程限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.process_limit_pct,5m)&gt;{$YASHANDB.PROCESS_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>进程限制使用率超过 {$YASHANDB.PROCESS_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 会话限制使用率过高</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.db.session_limit_pct,5m)&gt;{$YASHANDB.SESSION_LIMIT.WARN}</expression>
+      <priority>WARNING</priority>
+      <description>会话限制使用率超过 {$YASHANDB.SESSION_LIMIT.WARN}%，接近上限</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 存在离线数据文件</name>
+      <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.datafile_offline_count)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>存在离线数据文件，需要立即检查</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: Enqueue 锁请求过多</name>
+      <expression>avg(/YashanDB by Zabbix Agent/yashandb.lock.enqueue_requests,5m)&gt;5</expression>
+      <priority>WARNING</priority>
+      <description>Enqueue 锁请求次数过多，可能存在锁竞争</description>
+    </trigger>
+    <trigger>
+      <name>YashanDB: 归档进程失败</name>
+      <expression>change(/YashanDB by Zabbix Agent/yashandb.archiver.failed)&gt;0</expression>
+      <priority>HIGH</priority>
+      <description>归档进程失败，可能导致主备延迟或数据库挂起</description>
+    </trigger>
+
+  </triggers>
+                </item>
+
+            
+    <!-- ==================== v2.2 新增：New Relic Oracle 适配指标（41 个） ==================== -->
+
+    <!-- 等待事件（5 个） -->
+    <item>
+      <name>YashanDB: TOP 等待事件名称</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.wait_top_event</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <value_type>TEXT</value_type>
+      <description>TOP 等待事件名称（按 TIME_WAITED 降序）。来源：V$SYSTEM_EVENT。New Relic: db.topWaitEvent</description>
+    </item>
+    <item>
+      <name>YashanDB: 总会话等待次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.waits_total</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>所有会话等待事件的总次数。来源：V$SYSTEM_EVENT SUM(TOTAL_WAITS)。New Relic: db.waits</description>
+    </item>
+    <item>
+      <name>YashanDB: 总会话等待时间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.wait_time_total</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>s</units>
+      <description>所有会话等待事件的总等待时间（秒）。来源：V$SYSTEM_EVENT SUM(TIME_WAITED)/100。New Relic: db.waitTime</description>
+    </item>
+    <item>
+      <name>YashanDB: 指定等待事件次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.wait_event_waits[{#WAIT_EVENT}]</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>指定等待事件的 TOTAL_WAITS。LLD: yashandb.db.wait_event_discovery。New Relic: db.waitEvent.waits[{#WAIT_EVENT}]</description>
+    </item>
+    <item>
+      <name>YashanDB: 指定等待事件等待时间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.wait_event_time[{#WAIT_EVENT}]</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>s</units>
+      <description>指定等待事件的 TIME_WAITED（秒）。LLD: yashandb.db.wait_event_discovery。New Relic: db.waitEvent.time[{#WAIT_EVENT}]</description>
+    </item>
+
+    <!-- SGA Buffer（6 个） -->
+    <item>
+      <name>YashanDB: Buffer Busy Waits</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.buffer_busy_waits</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Buffer Busy Waits 次数（SGA 缓冲区争用）。来源：V$SYSTEM_EVENT。New Relic: sga.bufferBusyWaits</description>
+    </item>
+    <item>
+      <name>YashanDB: Free Buffer Waits</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.free_buffer_waits</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Free Buffer Waits 次数。来源：V$SYSTEM_EVENT。New Relic: sga.freeBufferWaits</description>
+    </item>
+    <item>
+      <name>YashanDB: Free Buffer Inspected</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.free_buffer_inspected</key>
+      <delay>120</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Free Buffer Inspected 数量（跳过缓冲区寻找空闲页）。New Relic: sga.freeBufferInspected</description>
+    </item>
+    <item>
+      <name>YashanDB: SGA Fixed Size</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.fixed_size</key>
+      <delay>3600</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>B</units>
+      <description>SGA Fixed Size 大小（字节）。来源：V$SGA WHERE NAME='Fixed Size'。New Relic: sga.fixedSize</description>
+    </item>
+    <item>
+      <name>YashanDB: Redo Buffers</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.redo_buffers</key>
+      <delay>3600</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>B</units>
+      <description>Redo Buffers 大小（字节）。来源：V$SGA WHERE NAME='Redo Buffers'。New Relic: sga.redoBuffers</description>
+    </item>
+    <item>
+      <name>YashanDB: Log Buffer Space Waits</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sga.log_buffer_space_waits</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Log Buffer Space Waits 次数（LGWR 等待日志缓冲区空间）。New Relic: sga.logBufferSpaceWaits</description>
+    </item>
+
+    <!-- 物理 I/O FILESTAT（4 个） -->
+    <item>
+      <name>YashanDB: 物理读取总次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.disk.total_reads</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>物理读取总次数。来源：V$FILESTAT SUM(PHYRDS)。New Relic: disk.reads</description>
+    </item>
+    <item>
+      <name>YashanDB: 物理写入总次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.disk.total_writes</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>物理写入总次数。来源：V$FILESTAT SUM(PHYWRTS)。New Relic: disk.writes</description>
+    </item>
+    <item>
+      <name>YashanDB: 物理读取总时间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.disk.total_read_time</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>s</units>
+      <description>物理读取总时间（秒）。来源：V$FILESTAT SUM(READTIM)/100。New Relic: disk.readTime</description>
+    </item>
+    <item>
+      <name>YashanDB: 物理写入总时间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.disk.total_write_time</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>s</units>
+      <description>物理写入总时间（秒）。来源：V$FILESTAT SUM(WRITETIM)/100。New Relic: disk.writeTime</description>
+    </item>
+
+    <!-- 会话增强（3 个） -->
+    <item>
+      <name>YashanDB: 非活跃会话数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sessions.inactive</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>非活跃会话数。来源：V$SESSION WHERE STATUS != 'ACTIVE'。New Relic: sessions.inactive</description>
+    </item>
+    <item>
+      <name>YashanDB: 后台会话数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sessions.background</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>后台会话数。来源：V$SESSION WHERE TYPE='BACKGROUND'。New Relic: sessions.background</description>
+    </item>
+    <item>
+      <name>YashanDB: 活跃会话数（详细）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sessions.active_detail</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>活跃会话数。来源：V$SESSION WHERE STATUS='ACTIVE'。New Relic: sessions.active</description>
+    </item>
+
+    <!-- Redo 增强（2 个） -->
+    <item>
+      <name>YashanDB: Redo 日志等待次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.redo.waits</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Redo 相关等待次数（log file parallel write/log file sync 等）。New Relic: redoLog.waits</description>
+    </item>
+    <item>
+      <name>YashanDB: Redo 切换触发检查点</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.redo.switch_checkpoint</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Redo 切换触发检查点次数。New Relic: redoLog.switchCheckpoint</description>
+    </item>
+
+    <!-- N/A 标记指标（6 个，返回 0 或 NULL） -->
+    <item>
+      <name>YashanDB: Library Cache Hit Ratio（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.library_cache_hit_ratio</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$LIBRARYCACHE 在 YashanDB 中不存在。返回 0。New Relic: libraryCache.hitRatio</description>
+    </item>
+    <item>
+      <name>YashanDB: Library Cache Reload Ratio（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.library_cache_reload_ratio</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$LIBRARYCACHE 在 YashanDB 中不存在。返回 0。New Relic: libraryCache.reloadRatio</description>
+    </item>
+    <item>
+      <name>YashanDB: Row Cache Hit Ratio（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.row_cache_hit_ratio</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$ROWCACHE 在 YashanDB 中不存在。返回 0。New Relic: rowCache.hitRatio</description>
+    </item>
+    <item>
+      <name>YashanDB: Rollback Segment Gets（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.rollback.gets</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$ROLLSTAT 在 YashanDB 中不存在。返回 0。New Relic: rollbackSegments.gets</description>
+    </item>
+    <item>
+      <name>YashanDB: Rollback Segment Waits（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.rollback.waits</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$ROLLSTAT 在 YashanDB 中不存在。返回 0。New Relic: rollbackSegments.waits</description>
+    </item>
+    <item>
+      <name>YashanDB: Rollback Ratio Wait（N/A）</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.rollback.ratio_wait</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>N/A - V$ROLLSTAT 在 YashanDB 中不存在。返回 0。New Relic: rollbackSegments.ratioWait</description>
+    </item>
+
+    <!-- Top SQL（3 个） -->
+    <item>
+      <name>YashanDB: Top SQL by Buffer Gets</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sql.top_buffer_gets</key>
+      <delay>120</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <value_type>TEXT</value_type>
+      <description>缓冲区获取最多的 SQL 模块名。来源：V$SQLAREA ORDER BY BUFFER_GETS DESC。New Relic: query.bufferGets</description>
+    </item>
+    <item>
+      <name>YashanDB: Top SQL by Disk Reads</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sql.top_disk_reads</key>
+      <delay>120</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <value_type>TEXT</value_type>
+      <description>磁盘读取最多的 SQL 模块名。来源：V$SQLAREA ORDER BY DISK_READS DESC。New Relic: query.diskReads</description>
+    </item>
+    <item>
+      <name>YashanDB: 共享池 SQL 语句总数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.sql.count</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>共享池中 SQL 语句总数。来源：V$SQLAREA COUNT(*)。New Relic: query.count</description>
+    </item>
+
+    <!-- DB 常规（5 个） -->
+    <item>
+      <name>YashanDB: 当前登录数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.current_logons</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>当前登录数。来源：V$SYSSTAT WHERE NAME='LOGONS'。New Relic: db.currentLogons</description>
+    </item>
+    <item>
+      <name>YashanDB: 打开游标数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.open_cursors</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>打开游标数。来源：V$SQLAREA COUNT(*)，替代 V$OPEN_CURSOR。New Relic: db.openCursors</description>
+    </item>
+    <item>
+      <name>YashanDB: 用户会话限制使用率</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.user_limit_pct</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>%</units>
+      <description>用户会话限制使用率（%）。New Relic: db.userLimitPct</description>
+    </item>
+    <item>
+      <name>YashanDB: 进程限制使用率</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.process_limit_pct</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>%</units>
+      <description>进程限制使用率（%）。来源：V$RESOURCE_LIMIT WHERE RESOURCE_NAME='PROCESSES'。New Relic: db.processLimitPct</description>
+    </item>
+    <item>
+      <name>YashanDB: 会话限制使用率</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.session_limit_pct</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <units>%</units>
+      <description>会话限制使用率（%）。New Relic: db.sessionLimitPct</description>
+    </item>
+
+    <!-- 表空间增强（2 个） -->
+    <item>
+      <name>YashanDB: 离线表空间数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.tablespace.offline_count</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>离线表空间数量。来源：DBA_TABLESPACES WHERE STATUS != 'ONLINE'。New Relic: tablespace.offlineCount</description>
+    </item>
+    <item>
+      <name>YashanDB: 离线数据文件数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.tablespace.datafile_offline_count</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>离线数据文件数量。来源：DBA_DATA_FILES WHERE STATUS != 'AVAILABLE'。New Relic: tablespace.datafileOfflineCount</description>
+    </item>
+
+    <!-- 归档日志（2 个） -->
+    <item>
+      <name>YashanDB: 近24h归档日志数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.archived_log.count</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>近24小时归档日志数量。来源：V$ARCHIVED_LOG WHERE FIRST_TIME >= SYSDATE-1。New Relic: archivedLog.count</description>
+    </item>
+    <item>
+      <name>YashanDB: 最新归档日志时间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.archived_log.first_time</key>
+      <delay>300</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>最新归档日志 FIRST_TIME（Unix 时间戳）。New Relic: archivedLog.firstTime</description>
+    </item>
+
+    <!-- 锁（2 个） -->
+    <item>
+      <name>YashanDB: Enqueue 锁数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.lock.enqueue_locks</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Enqueue 锁数量。来源：V$LOCK WHERE TYPE IN ('TX','TM')。New Relic: lock.locks</description>
+    </item>
+    <item>
+      <name>YashanDB: Enqueue 锁请求次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.lock.enqueue_requests</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>Enqueue 锁请求次数。New Relic: lock.requests</description>
+    </item>
+
+    <!-- 归档进程（1 个） -->
+    <item>
+      <name>YashanDB: 归档进程失败次数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.archiver.failed</key>
+      <delay>60</delay>
+      <history>t90d</history>
+      <trends>365d</trends>
+      <description>归档进程失败次数。New Relic: archiver.failed</description>
+    </item>
+
+    <!-- ==================== v2.3 Nagios check_oracle_health 适配 ==================== -->
+    <item>
+      <name>YashanDB: 无效数据库对象数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.invalid_objects</key>
+      <delay>300</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <description>STATUS='INVALID' 的对象数量。对标 Nagios: check_oracle_health --mode invalid-objects。来源: DBA_OBJECTS。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.invalid_objects) &gt; 0</expression>
+          <name>YashanDB: 存在无效对象</name>
+          <priority>WARNING</priority>
+          <description>存在无效数据库对象，请检查 DBA_OBJECTS WHERE STATUS='INVALID'，可能需要重新编译。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: 无效索引数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.invalid_indexes</key>
+      <delay>300</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <description>STATUS='INVALID' 的索引数量。无效索引会影响查询性能。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.invalid_indexes) &gt; 0</expression>
+          <name>YashanDB: 存在无效索引</name>
+          <priority>WARNING</priority>
+          <description>存在无效索引，可能由底层表变更或导入导出导致，请重建索引。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: 统计信息陈旧的表数量</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.stale_statistics</key>
+      <delay>3600</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <description>STALE_STATS='YES' 的表数量。对标 Nagios: check_oracle_health --mode stale-statistics。来源: DBA_TAB_STATISTICS。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.stale_statistics) &gt; 10</expression>
+          <name>YashanDB: 陈旧统计信息过多</name>
+          <priority>INFO</priority>
+          <description>超过 10 张表的统计信息已陈旧，建议执行 DBMS_STATS.GATHER_TABLE_STATS 进行更新。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: 软解析比率</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.soft_parse_ratio</key>
+      <delay>60</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <valuetype>FLOAT</valuetype>
+      <description>软解析比率（%）。对标 Nagios: check_oracle_health --mode soft-parse-ratio。计算: SESSION CURSOR CACHE HITS / (SESSION CURSOR CACHE HITS + PARSE COUNT (HARD)) * 100。低于 95% 表示存在过多硬解析。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.soft_parse_ratio) &lt; 95</expression>
+          <name>YashanDB: 软解析比率偏低</name>
+          <priority>WARNING</priority>
+          <description>软解析比率低于 95%，存在过多硬解析，请检查绑定变量使用情况和 SESSION_CURSOR_CACHE 参数设置。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: 表空间剩余天数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.tablespace_remaining_days</key>
+      <delay>3600</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <description>表空间剩余天数（基于增长趋势预测）。对标 Nagios: check_oracle_health --mode tablespace-remaining-time。返回 -1 表示无法计算。低于 30 天需要关注。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.tablespace_remaining_days) &gt; 0 and last(/YashanDB by Zabbix Agent/yashandb.db.tablespace_remaining_days) &lt; 30</expression>
+          <name>YashanDB: 表空间将在 30 天内耗尽</name>
+          <priority>HIGH</priority>
+          <description>表空间剩余天数低于 30 天，请及时扩展表空间或清理数据。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.tablespace_remaining_days) = 0</expression>
+          <name>YashanDB: 表空间已满</name>
+          <priority>HIGH</priority>
+          <description>表空间使用率超过 95%，必须立即处理！</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: 数据文件最大容量使用率</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.datafile_max_usage_pct</key>
+      <delay>3600</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <valuetype>FLOAT</valuetype>
+      <description>所有数据文件中 MAXBYTES 使用率的最大值（%）。对标 Nagios: check_oracle_health --mode datafiles-existing。</description>
+      <triggers>
+        <trigger>
+          <expression>last(/YashanDB by Zabbix Agent/yashandb.db.datafile_max_usage_pct) &gt; 90</expression>
+          <name>YashanDB: 数据文件容量使用率超过 90%</name>
+          <priority>HIGH</priority>
+          <description>数据文件接近最大容量限制，请检查 DBA_DATA_FILES 并考虑扩展。</description>
+          <manual_close>YES</manual_close>
+        </trigger>
+      </triggers>
+    </item>
+    <item>
+      <name>YashanDB: DBMS_STATS 包可用性</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.db.dbms_stats_available</key>
+      <delay>86400</delay>
+      <history>1d</history>
+      <trends>1d</trends>
+      <description>DBMS_STATS 包是否可用（1=可用，0=不可用）。用于 Nagios 指标内部检查。</description>
+    </item>
+    <item>
+      <name>YashanDB: 段总数</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.segment.total_count</key>
+      <delay>3600</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <description>数据库中段（表、索引、LOB 等）的总数。对标 Nagios: check_oracle_health --mode seg-top10-logical-reads（基础信息）。来源: DBA_SEGMENTS。</description>
+    </item>
+    <item>
+      <name>YashanDB: 占用空间最大的表空间</name>
+      <type>ZABBIX_ACTIVE</type>
+      <key>yashandb.segment.top_tablespace</key>
+      <delay>3600</delay>
+      <history>7d</history>
+      <trends>365d</trends>
+      <valuetype>TEXT</valuetype>
+      <description>占用数据库空间最大的表空间名称。来源: DBA_SEGMENTS GROUP BY TABLESPACE_NAME ORDER BY SUM(BYTES) DESC。</description>
+    </item>
+
+  </items>
+
+            <!-- ==================== 表空间 LLD 自动发现（复用 v1.0，key 统一为 yashandb.tablespace.*） ==================== -->
+            <discovery_rules>
+                <discovery_rule>
+                    <uuid>6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e</uuid>
+                    <name>YashanDB: 表空间自动发现</name>
+                    <key>yashandb.tablespace.discovery</key>
+                    <delay>3600s</delay>
+                    <description>自动发现所有表空间，为每个表空间创建监控项原型</description>
+                    <item_prototypes>
+                        <item_prototype>
+                            <uuid>7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f</uuid>
+                            <name>YashanDB: 表空间 {#TS} 总大小</name>
+                            <key>yashandb.tablespace.total[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 的数据文件总大小（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a</uuid>
+                            <name>YashanDB: 表空间 {#TS} 已使用</name>
+                            <key>yashandb.tablespace.used[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 已使用大小（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b</uuid>
+                            <name>YashanDB: 表空间 {#TS} 剩余空间</name>
+                            <key>yashandb.tablespace.free[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>UNSIGNED</value_type>
+                            <units>B</units>
+                            <description>表空间 {#TS} 剩余可用空间（字节）</description>
+                        </item_prototype>
+                        <item_prototype>
+                            <uuid>0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c</uuid>
+                            <name>YashanDB: 表空间 {#TS} 使用率</name>
+                            <key>yashandb.tablespace.pct_used[{#TS}]</key>
+                            <delay>600s</delay>
+                            <history>7d</history>
+                            <trends>90d</trends>
+                            <value_type>FLOAT</value_type>
+                            <units>%</units>
+                            <description>表空间 {#TS} 使用率百分比</description>
+                        </item_prototype>
+                    </item_prototypes>
+                    <trigger_prototypes>
+                        <trigger_prototype>
+                            <uuid>a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) > {$YASHANDB.TABLESPACE.CRIT}</expression>
+                            <name>YashanDB: 表空间 {#TS} 使用率严重 ({HOST.NAME})</name>
+                            <priority>HIGH</priority>
+                            <description>表空间 {#TS} 使用率超过 {$YASHANDB.TABLESPACE.CRIT}%，需要立即扩容</description>
+                        </trigger_prototype>
+                        <trigger_prototype>
+                            <uuid>b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7</uuid>
+                            <expression>last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) > {$YASHANDB.TABLESPACE.WARN} and last(/YashanDB by Zabbix Agent/yashandb.tablespace.pct_used[{#TS}]) &lt;= {$YASHANDB.TABLESPACE.CRIT}</expression>
+                            <name>YashanDB: 表空间 {#TS} 使用率告警 ({HOST.NAME})</name>
+                            <priority>WARNING</priority>
+                            <description>表空间 {#TS} 使用率超过 {$YASHANDB.TABLESPACE.WARN}%，请注意磁盘空间</description>
+                        </trigger_prototype>
+                    </trigger_prototypes>
+                </discovery_rule>
+            </discovery_rules>
+
+            <!-- ==================== 值映射 ==================== -->
+            <valuemaps>
+                <valuemap>
+                    <uuid>c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8</uuid>
+                    <name>YashanDB DB Status</name>
+                    <mappings>
+                        <mapping>
+                            <value>0</value>
+                            <newvalue>异常/不可用</newvalue>
+                        </mapping>
+                        <mapping>
+                            <value>1</value>
+                            <newvalue>正常运行</newvalue>
+                        </mapping>
+                    </mappings>
+                </valuemap>
+            </valuemaps>
+        </template>
+    </templates>
+</zabbix_export>

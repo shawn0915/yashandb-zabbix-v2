@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""测试 YashanDB Phase 1/2 指标所需的视图和 SQL"""
+import sys
+try:
+    import yaspy
+except ImportError:
+    print("yaspy not installed locally")
+    sys.exit(1)
+
+conn = yaspy.connect(dsn="yas_oracle:1688", user="sys", password="Cod-2022")
+
+def q(sql, label=""):
+    print(f"\n[{label}]")
+    cur = conn.cursor()
+    try:
+        cur.execute(sql)
+        rows = cur.fetchall()
+        if not rows:
+            print("  (empty)")
+            return
+        if cur.description:
+            cols = [d[0] for d in cur.description]
+            print(f"  Columns: {cols}")
+        for row in rows[:10]:
+            print(f"  {row}")
+        if len(rows) > 10:
+            print(f"  ... ({len(rows)} rows total)")
+    except Exception as e:
+        print(f"  ERROR: {e}")
+    finally:
+        cur.close()
+
+print("=== Phase 1 测试 ===")
+q("SELECT RESOURCE_NAME, CURRENT_UTILIZATION, MAX_UTILIZATION, LIMIT_VALUE FROM V$RESOURCE_LIMIT", "V$RESOURCE_LIMIT")
+q("SELECT TABLESPACE_NAME, CONTENTS, STATUS FROM DBA_TABLESPACES", "DBA_TABLESPACES CONTENTS")
+q("SELECT FILE_NAME, TABLESPACE_NAME, BYTES, MAXBYTES, AUTOEXTENSIBLE FROM DBA_TEMP_FILES", "DBA_TEMP_FILES")
+q("SELECT FILE_NAME, TABLESPACE_NAME, BYTES, MAXBYTES, AUTOEXTENSIBLE FROM DBA_DATA_FILES", "DBA_DATA_FILES AUTOEXTENSIBLE")
+q("SELECT WAIT_CLASS, TOTAL_WAITS, TIME_WAITED FROM V$WAITCLASSMETRIC", "V$WAITCLASSMETRIC")
+q("SELECT WAIT_CLASS, TOTAL_WAITS, TIME_WAITED FROM V$SYSTEM_WAIT_CLASS", "V$SYSTEM_WAIT_CLASS")
+q("SELECT COUNT(*) FROM V$ARCHIVED_LOG WHERE FIRST_TIME >= TRUNC(SYSDATE)", "当天归档数")
+q("SELECT SQL_ID, BUFFER_GETS, DISK_READS, EXECUTIONS FROM V$SQLAREA ORDER BY BUFFER_GETS DESC FETCH FIRST 3 ROWS ONLY", "V$SQLAREA Top N")
+q("SELECT VERSION FROM V$INSTANCE", "连接测试")
+
+print("\n=== Phase 2 测试 ===")
+q("SELECT USERNAME, ACCOUNT_STATUS, EXPIRY_DATE FROM DBA_USERS", "DBA_USERS 密码过期")
+q("SELECT NAME, VALUE FROM V$PARAMETER WHERE NAME='statistics_level'", "STATISTICS_LEVEL")
+q("SELECT OBJECT_TYPE, COUNT(*) AS CNT FROM DBA_OBJECTS WHERE STATUS='INVALID' GROUP BY OBJECT_TYPE", "INVALID对象分类")
+q("SELECT * FROM DBA_TEMP_FREE_SPACE", "DBA_TEMP_FREE_SPACE")
+q("SELECT TABLESPACE_NAME, STATUS, COUNT(*), SUM(BYTES) FROM DBA_UNDO_EXTENTS GROUP BY TABLESPACE_NAME, STATUS", "DBA_UNDO_EXTENTS")
+q("SELECT OWNER, TABLE_NAME, CHAIN_CNT FROM DBA_TABLES WHERE CHAIN_CNT > 0", "DBA_TABLES CHAIN_CNT")
+q("SELECT NVL(USERNAME,'(NULL)') AS U, COUNT(*) AS CNT FROM V$SESSION WHERE TYPE='USER' GROUP BY USERNAME ORDER BY 2 DESC", "按用户名会话分布")
+q("SELECT NVL(PROGRAM,'(NULL)') AS P, COUNT(*) AS CNT FROM V$SESSION WHERE TYPE='USER' GROUP BY PROGRAM ORDER BY 2 DESC", "按程序会话分布")
+q("SELECT AVG(ELAPSED_TIME) AS AVG_MS, PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY ELAPSED_TIME)/1000 AS P95_MS, PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY ELAPSED_TIME)/1000 AS P99_MS FROM V$SQL WHERE EXECUTIONS > 0 AND ELAPSED_TIME > 0", "V$SQL P95/P99 延迟(ms)")
+
+conn.close()
+print("\n测试完成")

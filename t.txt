@@ -1,0 +1,47 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.4, pytest-7.4.3, pluggy-1.6.0 -- C:\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: c:\Users\DELL\WorkBuddy\Claw\yas_zabbix
+configfile: pytest.ini
+plugins: asyncio-0.23.5, cov-4.1.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT
+collecting ... collected 1 item
+
+tests/test_monitor_cli.py::TestDispatchCompleteness::test_all_documented_metrics_in_dispatch FAILED [100%]
+
+================================== FAILURES ===================================
+______ TestDispatchCompleteness.test_all_documented_metrics_in_dispatch _______
+
+self = <tests.test_monitor_cli.TestDispatchCompleteness object at 0x000001E005101750>
+
+    def test_all_documented_metrics_in_dispatch(self):
+        """
+        METRIC_HELP 中列出的每个指标都必须在 dispatch 中存在。
+        这防止了"文档写了但函数没实现"的遗漏。
+        """
+        import re
+    
+        # 从 METRIC_HELP 提取所有以 yashandb 开头的 key
+        documented_keys = set()
+        for line in m.METRIC_HELP.splitlines():
+            m2 = re.match(r"^\s+(yashandb\.[a-z0-9_.*[\]]+)", line)
+            if m2:
+                key = m2.group(1)
+                # 去除参数部分还原为 base key
+                base = key.split("[")[0].rstrip(".")
+                documented_keys.add(base)
+    
+        # 从 dispatch 提取 base key
+        dispatch_raw = self._extract_dispatch_keys()
+        dispatch_keys = {k.split("[")[0] for k in dispatch_raw}
+    
+        missing = documented_keys - dispatch_keys
+>       assert not missing, \
+            f"METRIC_HELP 中有 {len(missing)} 个指标未在 dispatch 中实现: {sorted(missing)}"
+E       AssertionError: METRIC_HELP 中有 55 个指标未在 dispatch 中实现: ['yashandb.active_background_on_cpu', 'yashandb.active_sessions_on_cpu', 'yashandb.asm_diskgroup.free_mb', 'yashandb.asm_diskgroup.offline_disks', 'yashandb.asm_diskgroup.total_mb', 'yashandb.cache_blocks_corrupt', 'yashandb.consistent_read_gets', 'yashandb.data_guard.apply_lag', 'yashandb.data_guard.transport_lag', 'yashandb.database_cpu_time_ratio', 'yashandb.database_wait_time_ratio', 'yashandb.db_block_gets', 'yashandb.enqueue_deadlocks', 'yashandb.enqueue_timeouts', 'yashandb.execute_without_parse', 'yashandb.gc_average_cr_get_time', 'yashandb.gc_average_current_get_time', 'yashandb.gc_cr_block_received', 'yashandb.gc_current_block_received', 'yashandb.library_cachehit_ratio', 'yashandb.logons', 'yashandb.long_table_scans', 'yashandb.parse_failures', 'yashandb.pga_cache_hit', 'yashandb.physical_read_bytes', 'yashandb.physical_read_io_requests', 'yashandb.physical_read_total_bytes', 'yashandb.physical_read_total_io_requests', 'yashandb.physical_reads_direct', 'yashandb.physical_reads_direct_lobs', 'yashandb.physical_write_bytes', 'yashandb.physical_write_io_requests', 'yashandb.physical_write_total_bytes', 'yashandb.physical_write_total_io_requests', 'yashandb.physical_writes_direct', 'yashandb.physical_writes_direct_lobs', 'yashandb.process.pga_maximum_memory', 'yashandb.resource_manager.cpu_consumed_time', 'yashandb.resource_manager.cpu_wait_time', 'yashandb.row_cache_hit_ratio', 'yashandb.rows_per_sort', 'yashandb.service_response_time', 'yashandb.session.inactive_seconds', 'yashandb.soft_parse_ratio', 'yashandb.tablespace.discovery', 'yashandb.tablespace.free', 'yashandb.tablespace.in_use', 'yashandb.tablespace.maxsize', 'yashandb.tablespace.offline', 'yashandb.tablespace.pct_used', 'yashandb.tablespace.size', 'yashandb.tablespace.total', 'yashandb.tablespace.used', 'yashandb.temp_space_used', 'yashandb.total_parse_count']
+E       assert not {'yashandb.active_background_on_cpu', 'yashandb.active_sessions_on_cpu', 'yashandb.asm_diskgroup.free_mb', 'yashandb.asm_diskgroup.offline_disks', 'yashandb.asm_diskgroup.total_mb', 'yashandb.cache_blocks_corrupt', ...}
+
+tests\test_monitor_cli.py:160: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_monitor_cli.py::TestDispatchCompleteness::test_all_documented_metrics_in_dispatch
+============================== 1 failed in 0.06s ==============================

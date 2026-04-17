@@ -353,18 +353,13 @@ python3 scripts/yashandb_monitor.py \
 | parse count (hard) | PARSE COUNT (HARD) | ✅ 可用 |
 | parse count (total) | 不存在 | ❌ 不可用 |
 
-### 6.3 YashanDB 特有视图
+字段差异：
 
-| 视图 | 说明 | 替代的 Oracle 功能 |
-|-----|------|------------------|
-| V$SGA | SGA 各组件大小 | 替代 V$SGAINFO |
-| V$SGASTAT | SGA 详细统计 | 共享池统计 |
-| V$OSSTAT | OS 统计 | 系统资源统计 |
-
+Oracle 19c 中 V$SYSSTAT 还有字段 STAT_ID 和 CON_ID。
 
 ## 总结：选型建议与技术趋势
 
-通过这段时间对 yashandb-zabbix-v2 项目的深入研究，结合笔者十余年的 DBA 经验，总结以下几点建议：
+通过这段时间对 yashandb-zabbix-v2 项目的深入研究，结合笔者自身 DBA 经验，总结以下几点建议：
 
 1. 国产化监控方案值得投入：YashanDB 作为国产数据库的优秀代表之一，其监控生态正在快速完善。这个 Zabbix 插件的 125 个监控指标已经能够覆盖绝大多数生产场景。
 
